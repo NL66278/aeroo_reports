@@ -32,7 +32,7 @@
 
 { 
     'name': 'Aeroo Reports - Poweremail Addon',
-    'version': '1.0',
+    'version': '1.2',
     'category': 'Generic Modules/Aeroo Reporting',
     'description': "",
     'author': 'Alistek Ltd',

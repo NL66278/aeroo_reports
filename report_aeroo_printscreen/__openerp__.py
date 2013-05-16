@@ -31,7 +31,7 @@
 
 {
     'name': 'Aeroo Reports - Print Screen Addon',
-    'version': '1.0',
+    'version': '1.2',
     'category': 'Generic Modules/Aeroo Reporting',
     'description': """
 Replaces original OpenERP's "Printscreen List" report. This report produces ODF spreadsheet file (ods) with all fields visible on the view. This is useful report for rapid reporting on OpenERP's data.

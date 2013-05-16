@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2009-2011 Alistek Ltd (http://www.alistek.com) All Rights Reserved.
+# Copyright (c) 2008-2013 Alistek Ltd (http://www.alistek.com) All Rights Reserved.
 #                    General contacts <info@alistek.com>
 #
 # WARNING: This program as such is intended to be used by professional
@@ -29,20 +29,12 @@
 #
 ##############################################################################
 
-def domain2statement(domain):
-    statement=''
-    operator=False
-    for d in domain:
-        if not operator:
-            if type(d)==str:
-                if d=='|':
-                    operator=' or'
-                continue
-            else:
-                operator=False
-        statement+=' o.'+str(d[0])+' '+(d[1]=='=' and '==' or d[1])+' '+(isinstance(d[2], str) and '\''+d[2]+'\'' or str(d[2]))
-        if d!=domain[-1]:
-             statement+=operator or ' and'
-        operator=False
-    return statement
+check_list = [
+    'import cups',
+]
 
+from check_deps import check_deps
+check_deps(check_list)
+
+import report_aeroo_direct_print
+import installer

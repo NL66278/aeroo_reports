@@ -12,7 +12,7 @@
                     <group col="6" colspan="4">
                         <field name="name" select="1"/>
                         <field name="model" select="1"/>
-                        <field name="type" select="1" invisible="1"/>
+                        <field name="type" invisible="1"/>
                         <field name="report_name" select="1"/>
                         <field name="usage"/>
                         <field name="copies" attrs="{'invisible': [('report_name','in',['printscreen.list'])]}"/>
@@ -34,13 +34,11 @@
                                     <field name="report_rml" string="Template path" attrs="{'invisible': [('tml_source','&lt;&gt;','file')],'required': [('tml_source','=','file')]}"/>
                                 </group>
                             </group>
-                            <group attrs="{'invisible': [('in_format','=','genshi-raw')]}" colspan="4">
-                                <separator string="Stylesheet" colspan="4"/>
-                                <group colspan="4" col="8">
-                                    <field name="styles_mode" colspan="2"/>
-                                    <group colspan="6">
-                                        <field name="stylesheet_id" attrs="{'invisible': [('styles_mode','&lt;&gt;','specified')]}"/>
-                                    </group>
+                            <separator string="Stylesheet" colspan="4"/>
+                            <group colspan="4" col="8">
+                                <field name="styles_mode" colspan="2"/>
+                                <group colspan="6">
+                                    <field name="stylesheet_id" attrs="{'invisible': [('styles_mode','&lt;&gt;','specified')]}"/>
                                 </group>
                             </group>
                             <group attrs="{'invisible': [('in_format','&lt;&gt;','genshi-raw')]}" colspan="4" col="8">
@@ -70,12 +68,19 @@
 	                        <field name="parser_loc" attrs="{'invisible': [('parser_state','&lt;&gt;','loc')],'required': [('parser_state','=','loc')]}"/>
                         </page>
                         <page string="Advanced">
-                            <group colspan="4" col="6">
-                                <field name="content_fname"/>
-                                <field name="preload_mode" attrs="{'invisible': ['|',('in_format','=','genshi-raw'),('tml_source','=','parser')]}"/>
-                                <field name="fallback_false" attrs="{'invisible': [('in_format','=','genshi-raw')]}"/>
-                                <field name="active"/>
-                                <field name="xml_id" colspan="6"/>
+                            <group colspan="4">
+                                <field name="xml_id"/>
+                            </group>
+                            <group colspan="2" col="4">
+                                <field name="content_fname" colspan="4"/>
+                                <field name="replace_report_id" colspan="4" domain="[('model','=',model)]"/>
+                                <field name="preload_mode" attrs="{'invisible': ['|',('in_format','=','genshi-raw'),('tml_source','=','parser')]}" colspan="4"/>
+                                <field name="deferred"/>
+                                <field name="deferred_limit" attrs="{'invisible':[('deferred','=','off')]}"/>
+                            </group>
+                            <group colspan="2" col="4">
+                                <field name="active" colspan="4"/>
+                                <field name="fallback_false" attrs="{'invisible': [('in_format','=','genshi-raw')]}" colspan="4"/>
                             </group>
                         </page>
                         <page string="Security">
@@ -134,11 +139,21 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Printing Options">
-                    <field name="out_format" colspan="4"/>
-                    <field name="copies" colspan="4"/>
+                    <field name="state" invisible="1"/>
+                    <group states="draft">
+                        <field name="out_format" colspan="4" attrs="{'readonly':[('out_format_code','=','genshi-raw')]}" on_change="onchange_out_format(out_format)"/>
+                        <field name="out_format_code" colspan="4" invisible="1"/>
+                        <field name="copies" colspan="4"/>
+                        <label/>
+                    </group>
+                    <group states="confirm" expand="1" colspan="4">
+                        <field name="message" colspan="4" nolabel="1" readonly="1"/>
+                    </group>
                     <group col="4" colspan="4" fill="0">
+                        <button icon="gtk-yes" name="start_deferred" string="_Yes" type="object" states="confirm"/>
+                        <button icon="gtk-no" name="simple_print" string="_No" type="object" states="confirm"/>
                         <button icon="gtk-cancel" special="cancel" string="_Cancel" type="object"/>
-                        <button icon="gtk-print" name="to_print" string="_Print" type="object"/>
+                        <button icon="gtk-print" name="to_print" string="_Print" type="object" states="draft"/>
                     </group>
                 </form>
             </field>
@@ -309,8 +324,8 @@
         <field name="act_window_id" ref="action_aeroo_report_xml_tree"/>
     </record>
 
-    <menuitem action="action_aeroo_report_xml_tree" id="menu_ir_action_aeroo_report_xml" parent="menu_ir_action_aeroo_reports_xml"/>
-	<menuitem action="action_report_stylesheets" parent="menu_ir_action_aeroo_reports_xml" id="menu_report_stylesheets"/>
+    <menuitem action="action_aeroo_report_xml_tree" id="menu_ir_action_aeroo_report_xml" parent="menu_ir_action_aeroo_reports_xml" sequence="1"/>
+	<menuitem action="action_report_stylesheets" parent="menu_ir_action_aeroo_reports_xml" id="menu_report_stylesheets" sequence="2"/>
     <menuitem action="action_aeroo_report_import_wizard" id="menu_aeroo_report_import_xml" parent="menu_ir_action_aeroo_reports_xml"/>
 
     </data>

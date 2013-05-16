@@ -31,7 +31,7 @@
 
 {
 	"name" : "Aeroo Reports - Sample",
-	"version" : "1.0",
+	"version" : "1.2",
 	"description" : "Report sample for report_aeroo module",
 	"author" : "Alistek Ltd",
     'website': 'http://www.alistek.com',

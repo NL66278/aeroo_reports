@@ -32,7 +32,8 @@
 
 from barcode import barcode
 from tools import translate
-from currency_to_text import currency_to_text
+#from currency_to_text import currency_to_text
+from ctt_objects import supported_language
 import base64
 import StringIO
 from PIL import Image
@@ -44,6 +45,40 @@ from tools.translate import _
 import netsvc
 from tools.safe_eval import safe_eval as eval
 from aeroolib.plugins.opendocument import _filter
+
+try:
+    from docutils.examples import html_parts # use python-docutils library
+except ImportError, e:
+    rest_ok = False
+else:
+    rest_ok = True
+try:
+    import markdown
+    from markdown import Markdown # use python-markdown library
+    from markdown.inlinepatterns import AutomailPattern
+    
+    class AutomailPattern_mod (AutomailPattern, object):
+        def __init__(self, *args, **kwargs):
+            super(AutomailPattern_mod, self).__init__(*args, **kwargs)
+
+        def handleMatch(self, m):
+            el = super(AutomailPattern_mod, self).handleMatch(m)
+            href = ''.join([chr(int(a.replace(markdown.AMP_SUBSTITUTE+'#', ''))) for a in el.get('href').split(';') if a])
+            el.set('href', href)
+            return el
+    
+    markdown.inlinepatterns.AutomailPattern = AutomailPattern_mod # easy hack for correct displaying in Joomla
+
+except ImportError, e:
+    markdown_ok = False
+else:
+    markdown_ok = True
+try:
+    from mediawiki import wiki2html # use python-mediawiki library
+except ImportError, e:
+    wikitext_ok = False
+else:
+    wikitext_ok = True
 
 def domain2statement(domain):
     statement=''
@@ -113,6 +148,13 @@ class ExtraFunctions(object):
             'html_escape': self._html_escape,
             'http_prettyuri': self._http_prettyuri,
             'http_builduri': self._http_builduri,
+            'text_markdown': markdown_ok and self._text_markdown or \
+                self._text_plain('"markdown" format is not supported! Need to be installed "python-markdown" package.'),
+            'text_restruct': rest_ok and self._text_restruct or \
+                self._text_plain('"reStructuredText" format is not supported! Need to be installed "python-docutils" package.'),
+            'text_wiki': wikitext_ok and self._text_wiki or \
+                self._text_plain('"wikimarkup" format is not supported! Need to be installed "python-mediawiki" package.'),
+            'text_markup': self._text_markup,
             '__filter': self.__filter, # Don't use in the report template!
         }
 
@@ -172,7 +214,8 @@ class ExtraFunctions(object):
 
     def _currency2text(self, currency):
         def c_to_text(sum, currency=currency, language=None):
-            return unicode(currency_to_text(sum, currency, language or self._get_lang()), "UTF-8")
+            #return unicode(currency_to_text(sum, currency, language or self._get_lang()), "UTF-8")
+            return unicode(supported_language.get(language or self._get_lang()).currency_to_text(sum, currency), "UTF-8")
         return c_to_text
 
     def _translate_text(self, source):
@@ -332,7 +375,7 @@ class ExtraFunctions(object):
             if uom=='px':
                 result=str(val/dpi)+'in'
             elif uom=='cm':
-                result=str(val/dpi/2.54)+'in'
+                result=str(val/2.54)+'in'
             elif uom=='in':
                 result=str(val)+'in'
             return result
@@ -515,4 +558,32 @@ class ExtraFunctions(object):
         for pair in d.iteritems():
             result += '&%s=%s' % pair
         return result
+
+    def _text_restruct(self, text):
+        output = html_parts(unicode(text), doctitle=False)
+        return output['body']
+
+    def _text_markdown(self, text):
+        md = Markdown()
+        return md.convert(text)
+
+    def _text_wiki(self, text):
+        return wiki2html(text, True)
+
+    def _text_plain(self, msg):
+        def text_plain(text):
+            netsvc.Logger().notifyChannel('report_aeroo', netsvc.LOG_INFO, msg)
+            return text
+        return text_plain
+
+    def _text_markup(self, text):
+        lines = text.splitlines()
+        first_line = lines.pop(0)
+        if first_line=='text/x-markdown':
+            return self._text_markdown('\n'.join(lines))
+        elif first_line=='text/x-wiki':
+            return self._text_wiki('\n'.join(lines))
+        elif first_line=='text/x-rst':
+            return self._text_rest('\n'.join(lines))
+        return text
 
