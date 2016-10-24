@@ -30,7 +30,7 @@
 #
 ################################################################################
 
-from openerp import registry, models, _
+from openerp import registry, _
 from barcode import barcode
 from openerp.tools import translate
 #from currency_to_text import currency_to_text
@@ -179,7 +179,7 @@ class ExtraFunctions(object):
         return get_log
 
     def _get_report_xml(self):
-        return self.registry['ir.actions.report.xml'].browse(self.cr, self.uid, self.report_id)
+        return self.pool['ir.actions.report.xml'].browse(self.cr, self.uid, self.report_id)
 
     def _get_lang(self, source='current'):
         if source=='current':
@@ -285,7 +285,7 @@ class ExtraFunctions(object):
         return localspace['value_list']
 
     def _get_name(self, obj, context=None):
-        if isinstance(obj, models.Model):
+        if isinstance(obj, osv.Model):
             if context and isinstance(context, dict):
                 new_context = obj._context.copy()
                 new_context.update(context)

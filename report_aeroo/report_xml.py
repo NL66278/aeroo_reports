@@ -1,4 +1,3 @@
-
 # -*- encoding: utf-8 -*-
 ################################################################################
 #
@@ -30,8 +29,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ################################################################################
-
-from openerp import models, fields, api, _
+from openerp import models, fields, _
 from openerp.exceptions import except_orm, Warning
 
 from openerp.osv.orm import transfer_modifiers_to_node
@@ -88,24 +86,23 @@ class report_mimetypes(models.Model):
     filter_name = fields.Char('Filter Name', size=128, readonly=True)
     ### ends Fields
 
-class report_xml(models.Model):
+class report_xml(osv.Model):
     _name = 'ir.actions.report.xml'
     _inherit = 'ir.actions.report.xml'
 
-    @api.model
-    def aeroo_docs_enabled(self):
+    def aeroo_docs_enabled(self, cr, uid, context=None):
         '''
         Check if Aeroo DOCS connection is enabled
         '''
-        icp = self.env['ir.config_parameter'].sudo()
-        enabled = icp.get_param('aeroo.docs_enabled')
+        icp = self.pool['ir.config_parameter']
+        enabled = icp.get_param(
+            cr, SUPERUSER_ID, 'aeroo.docs_enabled', context=context
+        )
         return enabled == 'True' and True or False
     
-    @api.model
-    def load_from_file(self, path, key):
+    def load_from_file(self, cr, uid, path, key, context=None):
         class_inst = None
         expected_class = 'Parser'
-
         try:
             ad = os.path.abspath(os.path.join(tools.ustr(config['root_path']), u'addons'))
             mod_path_list = map(lambda m: os.path.abspath(tools.ustr(m.strip())), config['addons_path'].split(','))
@@ -118,7 +115,7 @@ class report_xml(models.Model):
                     filepath = os.path.normpath(filepath)
                     sys.path.append(os.path.dirname(filepath))
                     mod_name,file_ext = os.path.splitext(os.path.split(filepath)[-1])
-                    mod_name = '%s_%s_%s' % (self.env.cr.dbname, mod_name, key)
+                    mod_name = '%s_%s_%s' % (cr.dbname, mod_name, key)
 
                     if file_ext.lower() == '.py':
                         py_mod = imp.load_source(mod_name, filepath)
@@ -138,10 +135,10 @@ class report_xml(models.Model):
             logger.error('Error loading report parser: %s'+(filepath and ' "%s"' % filepath or ''), e)
             return None
     
-    @api.model
-    def load_from_source(self, source):
+    def load_from_source(self, cr, uid, source, context=None):
         source = "from openerp.report import report_sxw\n" + source
         expected_class = 'Parser'
+        context= context or {}
         context = {'Parser':None}
         try:
             exec source.replace('\r','') in context
