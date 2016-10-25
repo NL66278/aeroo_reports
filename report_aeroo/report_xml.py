@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-################################################################################
+##############################################################################
 #
 # Copyright (c) 2009-2014 Alistek ( http://www.alistek.com ) All Rights Reserved.
 #                    General contacts <info@alistek.com>
@@ -28,12 +28,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
-################################################################################
-from openerp import models, fields, _
-from openerp.exceptions import except_orm, Warning
+##############################################################################
+from openerp.osv import orm, fields
+from openerp.tools.translate import _
+from openerp.exceptions import except_orm
 
 from openerp.osv.orm import transfer_modifiers_to_node
-import openerp.netsvc as netsvc
 from report_aeroo import Aeroo_report
 from openerp.report.report_sxw import rml_parse
 from openerp.report import interface
@@ -41,15 +41,18 @@ import base64, binascii
 import openerp.tools as tools
 import encodings
 
-import imp, sys, os
+import sys, os
 import zipimport
 from openerp.tools.config import config
 from lxml import etree
 
 import logging
+
+
 logger = logging.getLogger('report_aeroo')
 
-class report_stylesheets(models.Model):
+
+class report_stylesheets(orm.Model):
     '''
     Aeroo Report Stylesheets
     '''
@@ -57,21 +60,29 @@ class report_stylesheets(models.Model):
     _description = 'Report Stylesheets'
     
     ### Fields
-    name = fields.Char('Name', size=64, required=True)
-    report_styles = fields.Binary('Template Stylesheet',
-        help='OpenOffice.org stylesheet (.odt)')
+    _columns = {
+        'name': fields.char('Name', size=64, required=True),
+        'report_styles': fields.binary(
+            'Template Stylesheet',
+            help='OpenOffice.org stylesheet (.odt)'
+        ),
+    }
     ### ends Fields
 
-class res_company(models.Model):
+class res_company(orm.Model):
     _name = 'res.company'
     _inherit = 'res.company'
 
     ### Fields
-    stylesheet_id = fields.Many2one('report.stylesheets', 
-        'Aeroo Global Stylesheet')
+    _columns = {
+        'stylesheet_id' fields.many2one(
+            'report.stylesheets', 
+            'Aeroo Global Stylesheet',
+        ),
+    }
     ### ends Fields
 
-class report_mimetypes(models.Model):
+class report_mimetypes(orm.Model):
     '''
     Aeroo Report Mime-Type
     '''
@@ -79,11 +90,16 @@ class report_mimetypes(models.Model):
     _description = 'Report Mime-Types'
 
     ### Fields
-    name = fields.Char('Name', size=64, required=True, readonly=True)
-    code = fields.Char('Code', size=16, required=True, readonly=True)
-    compatible_types = fields.Char('Compatible Mime-Types', size=128, 
-        readonly=True)
-    filter_name = fields.Char('Filter Name', size=128, readonly=True)
+    _columns = {
+        'name': fields.char('Name', size=64, required=True, readonly=True),
+        'code': fields.char('Code', size=16, required=True, readonly=True),
+        'compatible_types': fields.char(
+            'Compatible Mime-Types',
+            size=128, 
+            readonly=True,
+        ),
+        'filter_name': fields.char('Filter Name', size=128, readonly=True),
+    }
     ### ends Fields
 
 class report_xml(osv.Model):
@@ -150,16 +166,19 @@ class report_xml(osv.Model):
                 __name__, exc_info=True)
             return None
     
-    @api.one
-    def link_inherit_report(recs, new_replace_report_id=False):
+    def link_inherit_report(
+            self, cr, uid, ids, new_replace_report_id=False, context=None):
         res = {}
+        if not ids:
+            return res
+        recs = self.browse(cr, uid, ids, context=None)[0]
         if new_replace_report_id:
             inherit_report = recs.browse(new_replace_report_id)
         else:
-            inherit_report = report.replace_report_id
+            inherit_report = report.replace_report_id  # TODO RPO: report ??
 
         if inherit_report:
-            ir_values_obj = recs.env['ir.values']
+            ir_values_obj = self.pool['ir.values']
             if inherit_report.report_wizard:
                 src_action_type = 'ir.actions.act_window'
                 action_id = recs.wizard_id
@@ -167,7 +186,10 @@ class report_xml(osv.Model):
                 src_action_type = 'ir.actions.report.xml'
                 action_id = inherit_report.id
             events = ir_values_obj.search(
-                [('value','=',"%s,%s" % (src_action_type,action_id))])
+                cr, uid,
+                [('value','=',"%s,%s" % (src_action_type,action_id))],
+                context=context
+            )
             if events:
                 event = events[0]
                 if recs.report_wizard:
@@ -175,21 +197,30 @@ class report_xml(osv.Model):
                     if recs.wizard_id:
                         action_id = recs.wizard_id
                     else:
-                        action_id = inherit_report._set_report_wizard(recs.id, 
-                            linked_report_id=recs.id, report_name=recs.name)[0]
+                        action_id = inherit_report._set_report_wizard(
+                            recs.id, linked_report_id=recs.id,
+                            report_name=recs.name
+                        )[0]
                         res['wizard_id'] = action_id
                 else:
                     dest_action_type = 'ir.actions.report.xml'
                     action_id = recs.id
-                event.write({'value':"%s,%s" % (dest_action_type,action_id)})
+                event.write(
+                    cr, uid, {
+                        'value':"%s,%s" % (dest_action_type,action_id)
+                    },
+                    context=context
+                )
         return res
     
-    @api.one
-    def unlink_inherit_report(recs):
+    def unlink_inherit_report(self, cr, uid, ids, context=None):
         res = {}
-        keep_wizard = recs.env.context.get('keep_wizard') or False
+        if not ids:
+            return res
+        recs = self.browse(cr, uid, ids, context=None)[0]
+        keep_wizard = context.get('keep_wizard') or False
         if recs.replace_report_id:
-            irval_obj = recs.env['ir.values']
+            irval_obj = self.pool['ir.values']
             if recs.report_wizard:
                 src_action_type = 'ir.actions.act_window'
                 action_id = recs.wizard_id.id
@@ -199,7 +230,10 @@ class report_xml(osv.Model):
                 src_action_type = 'ir.actions.report.xml'
                 action_id = recs.id
             event_ids = irval_obj.search(
-                [('value','=',"%s,%s" % (src_action_type,action_id))])
+                cr, uid,
+                [('value','=',"%s,%s" % (src_action_type,action_id))],
+                context=context
+            )
             if event_ids:
                 event_id = event_ids[0]
                 if recs.replace_report_id.report_wizard:
@@ -208,9 +242,13 @@ class report_xml(osv.Model):
                 else:
                     dest_action_type = 'ir.actions.report.xml'
                     action_id = recs.replace_report_id.id
-                event_id.write({'value':"%s,%s" % (dest_action_type,action_id)})
-
-            if not keep_wizard and recs.wizard_id and not res.get('wizard_id',True):
+                event_id.write(
+                    cr, uid,
+                    {'value':"%s,%s" % (dest_action_type,action_id)},
+                    context=context
+                )
+            if (not keep_wizard and recs.wizard_id and
+                    not res.get('wizard_id', True)):
                 recs.wizard_id.unlink()
         return res
 
@@ -219,33 +257,37 @@ class report_xml(osv.Model):
         if interface.report_int._reports.has_key( name ):
             del interface.report_int._reports[name]
     
-    @api.model
-    def register_report(self, name, model, tmpl_path, parser):
+    def register_report(self, cr, uid, name, model, tmpl_path, parser):
         name = 'report.%s' % name
-        if interface.report_int._reports.has_key( name ):
+        if interface.report_int._reports.has_key(name):
             del interface.report_int._reports[name]
-        res = Aeroo_report(self.env.cr, name, model, tmpl_path, parser=parser)
+        res = Aeroo_report(cr, name, model, tmpl_path, parser=parser)
         return res
     
-    @api.model
-    def unregister_report(self, name):
+    def unregister_report(self, cr, uid, name, context=None):
         service_name = 'report.%s' % name
         if interface.report_int._reports.has_key( service_name ):
             del interface.report_int._reports[service_name]
         self.env.cr.execute("SELECT * FROM ir_act_report_xml WHERE \
                              report_name = %s and active = true \
                              ORDER BY id", (name,))
-        report = self.env.cr.dictfetchall()
+        report = cr.dictfetchall()
         if report:
             report = report[-1]
             parser = rml_parse
-            if report['parser_state']=='loc' and report['parser_loc']:
-                parser = self.load_from_file(report['parser_loc'], report['id']) or parser
-            elif report['parser_state']=='def' and report['parser_def']:
-                parser = self.load_from_source(report['parser_def']) or parser
-            self.register_report(report['report_name'], report['model'], report['report_rml'], parser)
+            if report['parser_state'] == 'loc' and report['parser_loc']:
+                parser = self.load_from_file(
+                    report['parser_loc'], report['id']
+                ) or parser
+            elif report['parser_state'] == 'def' and report['parser_def']:
+                parser = self.load_from_source(
+                    report['parser_def']
+                ) or parser
+            self.register_report(
+                report['report_name'], report['model'], report['report_rml'],
+                parser
+            )
     
-    @api.cr
     def _lookup_report(self, cr, name):
         if 'report.' + name in interface.report_int._reports:
             new_report = interface.report_int._reports['report.' + name]
@@ -269,14 +311,19 @@ class report_xml(osv.Model):
                 new_report = super(report_xml, self)._lookup_report(cr, name)
         return new_report
 
-    @api.multi
-    @api.depends('report_type', 'tml_source', 'report_sxw')
-    def _report_content(recs):
+    def _report_content(self, cr, uid, ids, context=None):
         res = {}
-        aeroo_ids = recs.search([('report_type','=','aeroo'),('id','in',recs.ids)])
+        if not ids:
+            return res
+        recs = self.browse(cr, uid, ids, context=None)[0]
+        aeroo_ids = self.search(
+            cr, uid,
+            [('report_type', '=', 'aeroo'), ('id', 'in', recs.ids)],
+            context=context
+        )
         orig_ids = list(set(recs.ids).difference(aeroo_ids.ids))
         name = 'report_sxw_content'
-        ancestor = recs.pool.get('ir.actions.report.xml')
+        ancestor = self.pool['ir.actions.report.xml']
         #TODO v8 how to call original function, where to get 'name' param?
         #res = orig_ids and super(report_xml, recs)._report_content({name=name) or {}
         for report in aeroo_ids:
@@ -306,144 +353,248 @@ class report_xml(osv.Model):
         l.sort()
         return zip(l, l)
     
-    @api.one
-    def _report_content_inv(recs, name, value, arg):
+    def _report_content_inv(cr, uid, ids, name, value, arg, context=None):
         if value:
-            recs.report_sxw_content = value
+            self.write(
+                cr, uid, ids,
+                {'report_sxw_content': value},
+                context=context
+            )
     
     def change_input_format(self, cr, uid, ids, in_format):
-        out_format = self.pool.get('report.mimetypes').search(cr, uid, [('code','=',in_format)])
+        out_format = self.pool['report.mimetypes'].search(
+            cr, uid, [('code','=',in_format)]
+        )
         return {
             'value':{'out_format': out_format and out_format[0] or False}
         }
     
-    @api.model
-    def _get_in_mimetypes(self):
-        mime_obj = self.env['report.mimetypes']
-        domain = self.env.context.get('allformats') and [] or [('filter_name','=',False)]
-        res = mime_obj.search(domain).read(['code', 'name'])
+
+    def _get_in_mimetypes(self, cr, uid, context=None):
+        context = context or {}
+        mime_obj = self.pool['report.mimetypes']
+        domain = (
+            context.get('allformats') and [] or
+            [('filter_name', '=', False)]
+        )
+        mime_ids = mime_obj.search(cr, uid, domain, context=context)
+        res = mime_obj.read(
+            cr, uid, mime_ids, ['code', 'name'], context=context
+        )
         return [(r['code'], r['name']) for r in res]
     
-    @api.multi
-    def _get_extras(recs):
+    def _get_extras(self, cr, uid, ids, context=None):
         result = []
+        if not ids:
+            return result
+        recs = self.browse(cr, uid, ids, context=None)[0]
         if recs.aeroo_docs_enabled():
             result.append('aeroo_ooo')
         ##### Check deferred_processing module #####
-        recs.env.cr.execute("SELECT id, state FROM ir_module_module WHERE \
-                             name='deferred_processing'")
-        deferred_proc_module = recs.env.cr.dictfetchone()
+        cr.execute("SELECT id, state FROM ir_module_module WHERE \
+                    name='deferred_processing'")
+        deferred_proc_module = cr.dictfetchone()
         if deferred_proc_module and deferred_proc_module['state'] in ('installed', 'to upgrade'):
             result.append('deferred_processing')
         ############################################
         result = ','.join(result)
+        # TODO RPO: Code below suggest there might be multiple records.. 
         for rec in recs:
             rec.extras = result
         
     ### Fields
-    charset = fields.Selection('_get_encodings', string='Charset',
-        required=True)
-    content_fname = fields.Char('Override Extension',size=64,
-        help='Here you can override output file extension')
-    styles_mode = fields.Selection([
-        ('default','Not used'),
-        ('global','Global'),
-        ('specified','Specified'),
-        ], string='Stylesheet')
-    stylesheet_id = fields.Many2one('report.stylesheets', 'Template Stylesheet')
-    preload_mode = fields.Selection([
-        ('static',_('Static')),
-        ('preload',_('Preload')),
-        ], string='Preload Mode')
-    tml_source = fields.Selection([
-        ('database','Database'),
-        ('file','File'),
-        ('parser','Parser'),
-        ], string='Template source', default='database', select=True)
-    parser_def = fields.Text('Parser Definition')
-    parser_loc = fields.Char('Parser location', size=128,
-        help="Path to the parser location. Beginning of the path must be start \
-              with the module name!\n Like this: {module name}/{path to the \
-              parser.py file}")
-    parser_state = fields.Selection([
-        ('default',_('Default')),
-        ('def',_('Definition')),
-        ('loc',_('Location')),
-        ],'State of Parser', select=True)
-    report_type = fields.Selection(selection_add=[('aeroo', 'Aeroo Reports')])
-    process_sep = fields.Boolean('Process Separately',
-        help='Generate the report for each object separately, then merge reports.')
-    in_format = fields.Selection(selection='_get_in_mimetypes',
-        string='Template Mime-type')
-    out_format = fields.Many2one('report.mimetypes', 'Output Mime-type')
-    #report_sxw_content = fields.Binary('SXW content', compute='_report_content',
-    #    fnct_inv=_report_content_inv, method=True) #TODO v8
-    #report_sxw_content = fields.Binary('SXW content', compute='_report_content', inverse="_report_content_inv")
-    report_sxw_content = fields.Binary('SXW content', compute='_report_content')
-    active = fields.Boolean('Active', help='Disables the report if unchecked.')
-    report_wizard = fields.Boolean('Report Wizard',
-        help='Adds a standard wizard when the report gets invoked.')
-    copies = fields.Integer(string='Number of Copies')
-    fallback_false = fields.Boolean('Disable Format Fallback', 
-        help='Raises error on format convertion failure. Prevents returning original report file type if no convertion is available.')
-    extras = fields.Char('Extra options', compute='_get_extras', method=True,
-        size=256)
-    deferred = fields.Selection([
-        ('off',_('Off')),
-        ('adaptive',_('Adaptive')),
-        ],'Deferred',
-        help='Deferred (aka Batch) reporting, for reporting on large amount of data.')
-    deferred_limit = fields.Integer('Deferred Records Limit',
-        help='Records limit at which you are invited to start the deferred process.')
-    replace_report_id = fields.Many2one('ir.actions.report.xml', 'Replace Report',
-        help='Select a report that should be replaced.')
-    wizard_id = fields.Many2one('ir.actions.act_window', 'Wizard Action')
+    # RPO TODO Check signature van function field functions 
+    _columns = {
+        'charset': fields.selection(
+            _get_encodings,
+            string='Charset',
+            required=True,
+        ),
+        'content_fname': fields.char(
+            'Override Extension',
+            size=64,
+            help='Here you can override output file extension'
+        ),
+        'styles_mode': fields.selection(
+            [('default','Not used'),
+             ('global','Global'),
+             ('specified','Specified'),
+            ],
+            string='Stylesheet',
+        ),
+        'stylesheet_id': fields.many2one(
+            'report.stylesheets',
+            'Template Stylesheet',
+        ),
+        'preload_mode': fields.selection(
+            [('static',_('Static')),
+             ('preload',_('Preload')),
+            ],
+            string='Preload Mode',
+        ),
+        'tml_source': fields.selection(
+            [('database','Database'),
+             ('file','File'),
+             ('parser','Parser'),
+            ],
+            string='Template source',
+            default='database',
+            select=True,
+        ),
+        'parser_def': fields.text('Parser Definition'),
+        'parser_loc': fields.char(
+            'Parser location',
+            size=128,
+            help="Path to the parser location."
+                 " Beginning of the path must start with the module name!\n"
+                 "Like this: {module name}/{path to the parser.py file}"
+        ),
+        'parser_state': fields.selection(
+            [('default',_('Default')),
+             ('def',_('Definition')),
+             ('loc',_('Location')),
+            ],
+            'State of Parser',
+            select=True,
+        ),
+        'report_type': fields.selection(
+            selection_add=[('aeroo', 'Aeroo Reports')]  # TODO RPO: Not in 7.0
+        ),
+        'process_sep': fields.boolean(
+            'Process Separately',
+            help="Generate the report for each object separately,"
+                 " then merge reports."
+        ),
+        'in_format': fields.selection(
+            _get_in_mimetypes,
+            string='Template Mime-type',
+        ),
+        'out_format': fields.many2one(
+            'report.mimetypes',
+            'Output Mime-type',
+        ),
+        'report_sxw_content': fields.function(
+            _report_content,
+            fnct_inv=_report_content_inv,
+            string='SXW content',
+            type='binary',
+            method=True,
+        ),
+        'active': fields.boolean(
+            'Active',
+            help='Disables the report if unchecked.'
+        ),
+        'report_wizard': fields.boolean(
+            'Report Wizard',
+            help='Adds a standard wizard when the report gets invoked.'
+        ),
+        'copies': fields.integer(string='Number of Copies'),
+        'fallback_false': fields.boolean(
+            'Disable Format Fallback', 
+            help="Raises error on format convertion failure."
+                 " Prevents returning original report file type"
+                 " if no convertion is available."
+        ),
+        'extras': fields.function(
+            _get_extras,
+            string='Extra options',
+            type='char',
+            method=True,
+            size=256,
+        ),
+        'deferred': fields.selection(
+            [('off', _('Off')),
+             ('adaptive', _('Adaptive')),
+            ],
+            'Deferred',
+            help="Deferred (aka Batch) reporting, for reporting on large"
+                 " amount of data."
+        ),
+        'deferred_limit': fields.integer(
+            'Deferred Records Limit',
+            help="Records limit at which you are invited to start"
+                 " the deferred process."
+        ),
+        'replace_report_id': fields.many2one(
+            'ir.actions.report.xml',
+            'Replace Report',
+            help='Select a report that should be replaced.'
+        ),
+        'wizard_id': fields.many2one(
+            'ir.actions.act_window',
+            'Wizard Action',
+        ),
+    }
     ### ends Fields
     
-    @api.model
-    def search(self, args, offset=0, limit=None, order=None, count=False, context=None):
-        orig_res = super(report_xml, self).search(args, offset=offset, limit=limit, order=order)
+    def search(
+            self, cr, uid, args, offset=0, limit=None, order=None,
+            count=False, context=None):
+        orig_res = super(report_xml, self).search(
+            cr, uid, args, offset=offset, limit=limit, order=order,
+            count=count, context=context
+        )
         by_name = len(args) == 1 and [x for x in args if x[0] == 'report_name']
         if by_name and orig_res and 'print_id' not in self.env.context:
             report_name = by_name[0][2]
-            replace_rep = super(report_xml, self).search([('replace_report_id','=',orig_res.ids[0])], offset=offset, limit=limit, order=order)
+            replace_rep = super(report_xml, self).search(
+                cr, uid, [('replace_report_id','=',orig_res.ids[0])],
+                offset=offset, limit=limit, order=order,
+                count=count, context=context
+            )
             if len(replace_rep):
                 return replace_rep
         return orig_res
     
-    
-    @api.model
-    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
-        if self.env.context.get('default_report_type')=='aeroo':
-            mda_mod = self.env['ir.model.data']
+    def fields_view_get(
+            self, cr, uid, view_id=None, view_type='form', toolbar=False,
+            submenu=False, context=None):
+        if context.get('default_report_type') == 'aeroo':
+            mda_mod = self.pool['ir.model.data']
             if view_type == 'form':
-                view_id = mda_mod.get_object_reference('report_aeroo', 'act_report_xml_view1')[1]
+                view_id = mda_mod.get_object_reference(
+                    'report_aeroo', 'act_report_xml_view1'
+                )[1]
             elif view_type == 'tree':
-                view_id = mda_mod.get_object_reference('report_aeroo', 'act_aeroo_report_xml_view_tree')[1]
-        res = super(report_xml, self).fields_view_get(view_id, view_type,
-            toolbar=toolbar, submenu=submenu)
-        if view_type=='form' and self.env.context.get('default_report_type')=='aeroo':
-            cr = self.env.cr
+                view_id = mda_mod.get_object_reference(
+                    'report_aeroo', 'act_aeroo_report_xml_view_tree'
+                )[1]
+        res = super(report_xml, self).fields_view_get(
+            cr, uid, view_id, view_type,
+            toolbar=toolbar, submenu=submenu, context=context
+        )
+        if (view_type == 'form' and
+                context.get('default_report_type') == 'aeroo'):
             ##### Check deferred_processing module #####
-            cr.execute("SELECT id, state FROM ir_module_module WHERE name='deferred_processing'")
+            cr.execute(
+                "SELECT id, state FROM ir_module_module"
+                " WHERE name='deferred_processing'"
+            )
             deferred_proc_module = cr.dictfetchone()
-            if not (deferred_proc_module and deferred_proc_module['state'] in ('installed', 'to upgrade')):
+            if not (
+                    deferred_proc_module and
+                    deferred_proc_module['state'] in
+                    ('installed', 'to upgrade')):
                 doc = etree.XML(res['arch'])
                 deferred_node = doc.xpath("//field[@name='deferred']")
                 modifiers = {'invisible': True}
                 transfer_modifiers_to_node(modifiers, deferred_node[0])
-                deferred_limit_node = doc.xpath("//field[@name='deferred_limit']")
+                deferred_limit_node = doc.xpath(
+                    "//field[@name='deferred_limit']"
+                )
                 transfer_modifiers_to_node(modifiers, deferred_limit_node[0])
                 res['arch'] = etree.tostring(doc)
             ############################################
         return res
     
-    # TODO Odoo v8: Remove when issue https://github.com/odoo/odoo/issues/2899 gets
-    # really resolved.
-    @api.v7
-    def read(self, cr, user, ids, fields=None, context=None, load='_classic_read'):
+    def read(
+            self, cr, user, ids, fields=None, context=None,
+            load='_classic_read'):
         ##### check new model fields, that while not exist in database #####
-        cr.execute("SELECT name FROM ir_model_fields WHERE model = 'ir.actions.report.xml'")
+        cr.execute(
+            "SELECT name FROM ir_model_fields"
+            " WHERE model = 'ir.actions.report.xml'"
+        )
         true_fields = [val[0] for val in cr.fetchall()]
         true_fields.append(self.CONCURRENCY_CHECK_FIELD)
         if fields:
@@ -453,10 +604,13 @@ class report_xml(osv.Model):
             exclude_fields = []
         ####################################################################
         res = super(report_xml, self).read(cr, user, ids, fields, context)
-        ##### set default values for new model fields, that while not exist in database ####
+        ##### set default values for new model fields,
+        ##### that while not exist in database ####
         if exclude_fields:
-            defaults = self.default_get(cr, user, exclude_fields, context=context)
-            if type(res)==list:
+            defaults = self.default_get(
+                cr, user, exclude_fields, context=context
+            )
+            if type(res) == list:
                 for r in res:
                     for exf in exclude_fields:
                         if exf!='id':
@@ -465,41 +619,10 @@ class report_xml(osv.Model):
                 for exf in exclude_fields:
                     if exf!='id':
                         res[exf] = defaults.get(exf, False)
-        ####################################################################################
+        ####################################################################
         return res    
     
-    @api.v8
-    @api.multi
-    def read(recs, fields=None, load='_classic_read'):
-        cr = recs.env.cr
-        ##### check new model fields, that while not exist in database #####
-        cr.execute("SELECT name FROM ir_model_fields WHERE model = 'ir.actions.report.xml'")
-        true_fields = [val[0] for val in cr.fetchall()]
-        true_fields.append(recs.CONCURRENCY_CHECK_FIELD)
-        if fields:
-            exclude_fields = set(fields).difference(set(true_fields))
-            fields = filter(lambda f: f not in exclude_fields, fields)
-        else:
-            exclude_fields = []
-        ####################################################################
-        res = super(report_xml, recs).read(fields=fields, load=load)
-        ##### set default values for new model fields, that while not exist in database ####
-        if exclude_fields:
-            defaults = recs.default_get(exclude_fields)
-            if type(res)==list:
-                for r in res:
-                    for exf in exclude_fields:
-                        if exf!='id':
-                            r[exf] = defaults.get(exf, False)
-            else:
-                for exf in exclude_fields:
-                    if exf!='id':
-                        res[exf] = defaults.get(exf, False)
-        ####################################################################################
-        #if len(res) == 1: #TODO v8 fails, ir.values expect dict instead of list- ir_values.py#432
-        #    return res[0]
-        return res
-    
+    # ================= RPO Tot hier geconverteerd ======================== 
     @api.multi
     def unlink(recs):
         #TODO: process before delete resource
@@ -740,4 +863,3 @@ class report_xml(osv.Model):
         'deferred': 'off',
         'deferred_limit': 80,
     }
-

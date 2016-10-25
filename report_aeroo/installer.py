@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-################################################################################
+##############################################################################
 #
-# Copyright (c) 2009-2014 Alistek ( http://www.alistek.com ) All Rights Reserved.
-#                    General contacts <info@alistek.com>
+# Copyright (c) 2009-2014 Alistek ( http://www.alistek.com )
+#   All Rights Reserved.
+#   General contacts <info@alistek.com>
 #
 # WARNING: This program as such is intended to be used by professional
 # programmers who take the whole responsability of assessing all potential
@@ -28,9 +29,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
-################################################################################
+##############################################################################
 
-from openerp import models, fields, api, _
+from openerp.osv import orm, fields
+from openerp.tools.translate import _
 
 import openerp.tools as tools
 import os, base64
@@ -45,13 +47,12 @@ except ImportError:
 
 _url = 'http://www.alistek.com/aeroo_banner/v7_0_report_aeroo.png'
 
-class report_aeroo_installer(models.TransientModel):
+class report_aeroo_installer(orm.TransientModel):
     _name = 'report.aeroo.installer'
     _inherit = 'res.config.installer'
     _rec_name = 'link'
     _logo_image = None
-    
-    @api.model
+
     def _get_image(self):
         if self._logo_image:
             return self._logo_image
@@ -72,16 +73,25 @@ class report_aeroo_installer(models.TransientModel):
         else:
             self._logo_image = base64.encodestring(im.read())
             return self._logo_image
-    
-    @api.one
-    def _get_image_fn(recs):
-        image = recs._get_image()
-        for rec in recs:
-            rec.config_logo = image
-    
+
+    def _get_image_fn(cr, uid, ids, field_name, arg, context=None):
+        res = {}
+        image = self._get_image()
+        for rec in self.browse(cr, uid, ids, context=context):
+            res[rec.id] = image
+        return res
+
     ### Fields
-    link = fields.Char('Original developer', size=128, readonly=True)
-    config_logo = fields.Binary(compute='_get_image_fn', string='Image')
+    _columns = {
+        'link': fields.char(
+            'Original developer', size=128, readonly=True
+        ),
+        'config_logo': fields.function(
+            _get_image_fn,
+            type='binary',
+            string='Image',
+        ),
+    }
     ### ends Fields
 
     _defaults = {
@@ -89,13 +99,12 @@ class report_aeroo_installer(models.TransientModel):
         'link':'http://www.alistek.com',
     }
 
-class docs_config_installer(models.TransientModel):
+class docs_config_installer(orm.TransientModel):
     _name = 'docs_config.installer'
     _inherit = 'res.config.installer'
     _rec_name = 'host'
     _logo_image = None
-    
-    @api.cr_uid_context
+
     def _get_image(self, cr, uid, context=None):
         if self._logo_image:
             return self._logo_image
@@ -116,100 +125,129 @@ class docs_config_installer(models.TransientModel):
         else:
             self._logo_image = base64.encodestring(im.read())
             return self._logo_image
-    
-    @api.one
-    def _get_image_fn(recs):
-        recs.config_logo = recs._get_image()
-    
+
+    def _get_image_fn(cr, uid, ids, field_name, arg, context=None):
+        res = {}
+        image = self._get_image()
+        for rec in self.browse(cr, uid, ids, context=context):
+            res[rec.id] = image
+        return res
+
     ### Fields
-    enabled = fields.Boolean('Enabled')
-    host = fields.Char('Host', size=64, required=True)
-    port = fields.Integer('Port', required=True)
-    auth_type = fields.Selection([
-            ('simple','Simple Authentication')
-        ],'Authentication')
-    username = fields.Char('Username', size=32)
-    password = fields.Char('Password', size=32)
-    state = fields.Selection([
-            ('init','Init'),
-            ('error','Error'),
-            ('done','Done'),
-        ],'State', select=True, readonly=True)
-    msg = fields.Text('Message', readonly=True)
-    error_details = fields.Text('Error Details', readonly=True)
-    config_logo = fields.Binary(compute='_get_image_fn', string='Image')
+    _columns = {
+        'enabled': fields.boolean('Enabled'),
+        'host': fields.char('Host', size=64, required=True),
+        'port': fields.integer('Port', required=True),
+        'auth_type': fields.selection(
+            [('simple','Simple Authentication')],
+            'Authentication',
+        ),
+        'username': fields.char('Username', size=32),
+        'password': fields.char('Password', size=32),
+        'state': fields.selection(
+            [('init','Init'),
+             ('error','Error'),
+             ('done','Done'),
+            ],
+            'State', select=True, readonly=True
+        ),
+        'msg': fields.text('Message', readonly=True),
+        'error_details': fields.text('Error Details', readonly=True),
+        'config_logo': fields.function(
+            _get_image_fn,
+            type='binary',
+            string='Image',
+        ),
+    }
     ### ends Fields
-    
-    @api.model
-    def default_get(self, allfields):
+
+    def default_get(self, cr, uid, allfields, context=None):
         icp = self.pool['ir.config_parameter']
-        defaults = super(docs_config_installer, self).default_get(allfields)
-        enabled = icp.get_param(self.env.cr, self.env.uid, 'aeroo.docs_enabled')
+        defaults = super(docs_config_installer, self).default_get(
+            cr, uid, allfields, context=context
+        )
+        enabled = icp.get_param(cr, uid, 'aeroo.docs_enabled')
         defaults['enabled'] = enabled == 'True' and True or False
-        defaults['host'] = icp.get_param(self.env.cr, self.env.uid, 
-                            'aeroo.docs_host') or 'localhost'
-        defaults['port'] = int(icp.get_param(self.env.cr, self.env.uid, 
-                            'aeroo.docs_port')) or 8989
-        defaults['auth_type'] = icp.get_param(self.env.cr, self.env.uid, 
-                            'aeroo.docs_auth_type') or False
-        defaults['username'] = icp.get_param(self.env.cr, self.env.uid, 
-                            'aeroo.docs_username') or 'anonymous'
-        defaults['password'] = icp.get_param(self.env.cr, self.env.uid, 
-                            'aeroo.docs_password') or 'anonymous'
+        defaults['host'] = icp.get_param(
+            cr, uid, 'aeroo.docs_host'
+        ) or 'localhost'
+        defaults['port'] = int(
+            icp.get_param(cr, uid, 'aeroo.docs_port')
+        ) or 8989
+        defaults['auth_type'] = icp.get_param(
+            cr, uid, 'aeroo.docs_auth_type'
+        ) or False
+        defaults['username'] = icp.get_param(
+            cr, uid, 'aeroo.docs_username'
+        ) or 'anonymous'
+        defaults['password'] = icp.get_param(
+            cr, uid, 'aeroo.docs_password'
+        ) or 'anonymous'
         return defaults
-    
-    @api.multi
-    def check(self):
-        icp = self.env['ir.config_parameter']
-        icp.set_param('aeroo.docs_enabled', str(self.enabled))
-        icp.set_param('aeroo.docs_host', self.host)
-        icp.set_param('aeroo.docs_port', self.port)
-        icp.set_param('aeroo.docs_auth_type', self.auth_type or 'simple')
-        icp.set_param('aeroo.docs_username', self.username)
-        icp.set_param('aeroo.docs_password', self.password)
+
+    def check(self, cr, uid, ids, context=None):
+        if not ids:
+            return
+        icp = self.pool['ir.config_parameter']
+        this_obj = self.browse(cr, uid, ids, context=context)[0]:
+        icp.set_param('aeroo.docs_enabled', str(this_obj.enabled))
+        icp.set_param('aeroo.docs_host', this_obj.host)
+        icp.set_param('aeroo.docs_port', this_obj.port)
+        icp.set_param('aeroo.docs_auth_type', this_obj.auth_type or 'simple')
+        icp.set_param('aeroo.docs_username', this_obj.username)
+        icp.set_param('aeroo.docs_password', this_obj.password)
         error_details = ''
         state = 'done'
-        
-        if self.enabled:
+        if this_obj.enabled:
             try:
-                fp =tools.file_open('report_aeroo/test_temp.odt', mode='rb')
+                fp = tools.file_open('report_aeroo/test_temp.odt', mode='rb')
                 file_data = fp.read()
                 with aeroo_lock:
-                    docs_client = DOCSConnection(self.host, self.port,
-                        username=self.username, password=self.password)
+                    docs_client = DOCSConnection(
+                        this_obj.host, this_obj.port,
+                        username=this_obj.username,
+                        password=this_obj.password
+                    )
                     token = docs_client.upload(file_data)
-                    data = docs_client.convert(identifier=token, out_mime='pdf')
+                    data = docs_client.convert(
+                        identifier=token, out_mime='pdf'
+                    )
             except Exception as e:
                 error_details = str(e)
                 state = 'error'
         if state=='error':
-            msg = _('Failure! Connection to DOCS service was not established ' +
-                    'or convertion to PDF unsuccessful!')
-        elif state=='done' and not self.enabled:
+            msg = _(
+                'Failure! Connection to DOCS service was not established ' +
+                'or convertion to PDF unsuccessful!'
+            )
+        elif state=='done' and not this_obj.enabled:
             msg = _('Connection to Aeroo DOCS disabled!')
         else:
-            msg = _('Success! Connection to the DOCS service was successfully '+
-                    'established and PDF convertion is working.')
-        self.msg = msg
-        self.error_details = error_details
-        self.state = state
-        mod_obj = self.env['ir.model.data']
-        act_obj = self.env['ir.actions.act_window']
-        result = mod_obj.get_object_reference('report_aeroo',
-                     'action_docs_config_wizard')
+            msg = _(
+                'Success! Connection to the DOCS service was successfully '+
+                'established and PDF convertion is working.'
+            )
+        this_obj.msg = msg
+        this_obj.error_details = error_details
+        this_obj.state = state
+        mod_obj = this_obj.env['ir.model.data']
+        act_obj = this_obj.env['ir.actions.act_window']
+        result = mod_obj.get_object_reference(
+            'report_aeroo',
+            'action_docs_config_wizard'
+        )
         act_id = result and result[1] or False
         result = act_obj.search([('id','=',act_id)]).read()[0]
-        result['res_id'] = self.id
+        result['res_id'] = this_obj.id
         return result
 
     _defaults = {
         'config_logo': _get_image,
-        'host':'localhost',
-        'port':8989,
-        'auth_type':False,
-        'username':'anonymous',
-        'password':'anonymous',
-        'state':'init',
+        'host': 'localhost',
+        'port': 8989,
+        'auth_type': False,
+        'username': 'anonymous',
+        'password': 'anonymous',
+        'state': 'init',
         'enabled': False,
     }
-    

@@ -30,7 +30,8 @@
 #
 ################################################################################
 
-from openerp import registry, _
+from openerp.modules import registry
+from openerp.tools.translate import _
 from barcode import barcode
 from openerp.tools import translate
 #from currency_to_text import currency_to_text
