@@ -65,7 +65,7 @@ from openerp.modules import load_information_from_description_file
 import openerp.release as release
 
 from .ExtraFunctions import ExtraFunctions
-from .aeroo.docs_client_lib import DOCSConnection
+from .docs_client_lib import DOCSConnection
 
 
 logger = logging.getLogger('report_aeroo')
