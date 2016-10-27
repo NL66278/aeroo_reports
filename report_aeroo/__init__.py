@@ -1,4 +1,5 @@
-################################################################################
+# -*- coding: utf-8 -*-
+#############################################################################
 #
 # Copyright (c) 2009-2014 Alistek ( http://www.alistek.com ) All Rights Reserved.
 #                    General contacts <info@alistek.com>
@@ -27,7 +28,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
-################################################################################
+#############################################################################
 
 import aeroolib
 from genshi.template import NewTextTemplate

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+##############################################################################
 #
 # Copyright (c) 2008-2014 Alistek Ltd (http://www.alistek.com) All Rights Reserved.
 #                    General contacts <info@alistek.com>
