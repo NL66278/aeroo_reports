@@ -58,13 +58,14 @@ from genshi import __version__ as genshi_version
 
 from openerp.report.report_sxw import report_sxw, report_rml
 from openerp.osv import osv
+from openerp import pooler
 from openerp.tools.translate import _
 import openerp.tools as tools
 from openerp.modules import load_information_from_description_file
 import openerp.release as release
 
-from report_aeroo.ExtraFunctions import ExtraFunctions
-from report_aeroo.docs_client_lib import DOCSConnection
+from .ExtraFunctions import ExtraFunctions
+from .aeroo.docs_client_lib import DOCSConnection
 
 
 logger = logging.getLogger('report_aeroo')

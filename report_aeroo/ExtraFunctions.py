@@ -29,8 +29,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ################################################################################
-
-from openerp.modules import registry
+from openerp import pooler
 from openerp.tools.translate import _
 from barcode import barcode
 from openerp.tools import translate
@@ -96,11 +95,15 @@ def domain2statement(domain):
                 continue
             else:
                 operator=False
-        statement+=' o.'+str(d[0])+' '+(d[1]=='=' and '==' or d[1])+' '+(isinstance(d[2], str) and '\''+d[2]+'\'' or str(d[2]))
+        statement += (
+            ' o.' + str(d[0]) + ' ' + (d[1] == '=' and '==' or d[1]) +
+            ' ' + (isinstance(d[2], str) and '\'' + d[2] + '\'' or str(d[2]))
+        )
         if d!=domain[-1]:
             statement+=operator or ' and'
         operator=False
     return statement
+
 
 class ExtraFunctions(object):
     """ This class contains some extra functions which
@@ -109,7 +112,7 @@ class ExtraFunctions(object):
     def __init__(self, cr, uid, report_id, context):
         self.cr = cr
         self.uid = uid
-        self.registry = registry(self.cr.dbname)
+        self.registry = pooler.get_pool(cr.dbname)
         self.report_id = report_id
         self.context = context
         self.functions = {
