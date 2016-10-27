@@ -57,7 +57,6 @@ from genshi.template.eval import StrictLookup
 from genshi import __version__ as genshi_version
 
 from openerp.report.report_sxw import report_sxw, report_rml
-from openerp import registry
 from openerp.osv import osv
 from openerp.tools.translate import _
 import openerp.tools as tools
@@ -147,7 +146,7 @@ class Aeroo_report(report_sxw):
         '''
         Check if Aeroo DOCS connection is enabled
         '''
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         icp = pool['ir.config_parameter']
         enabled = icp.get_param(cr, 1, 'aeroo.docs_enabled')
         return enabled == 'True' and True or False
@@ -160,7 +159,7 @@ class Aeroo_report(report_sxw):
         self.logger("registering %s (%s)" % (name, table), logging.INFO)
         self.active_prints = {}
 
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         ir_obj = pool.get('ir.actions.report.xml')
         name = name.startswith('report.') and name[7:] or name
         try:
@@ -284,7 +283,7 @@ class Aeroo_report(report_sxw):
         return include_document
 
     def _subreport(self, cr, uid, aeroo_print, output='odt', aeroo_docs=False, context={}):
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         ir_obj = pool.get('ir.actions.report.xml')
         #### for odt documents ####
         def odt_subreport(name=None, obj=None):
@@ -345,7 +344,7 @@ class Aeroo_report(report_sxw):
 
     def get_other_template(self, cr, uid, model, rec_id, parser):
         if hasattr(parser, 'get_template'):
-            pool = registry(cr.dbname)
+            pool = pooler.get_pool(cr.dbname)
             record = pool.get(model).browse(cr, uid, rec_id, {})
             template = parser.get_template(cr, uid, record)
             return template
@@ -353,7 +352,7 @@ class Aeroo_report(report_sxw):
             return False
 
     def get_styles_file(self, cr, uid, report_xml, company=None, context=None):
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         style_io=None
         if report_xml.styles_mode!='default':
             if report_xml.styles_mode=='global':
@@ -461,7 +460,7 @@ class Aeroo_report(report_sxw):
         raise Exception(_("Aeroo Reports: Error while generating the report."), e, str(e), _("For more reference inspect error logs."))
 
     def get_docs_conn(self, cr):
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         icp = pool.get('ir.config_parameter')
         docs_host = icp.get_param(cr, 1, 'aeroo.docs_host') or 'localhost'
         docs_port = icp.get_param(cr, 1, 'aeroo.docs_port') or '8989'
@@ -477,7 +476,7 @@ class Aeroo_report(report_sxw):
         deferred = context.get('deferred_process')
         if deferred:
             deferred.set_status(_('Started'))
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         if not context:
             context={}
         context = context.copy()
@@ -653,7 +652,7 @@ class Aeroo_report(report_sxw):
     def create_source_pdf(self, cr, uid, ids, data, report_xml, context=None):
         if not context:
             context={}
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         attach = report_xml.attachment
         aeroo_docs = self.aeroo_docs_enabled(cr) # Detect DOCS conn. enabled
         context['aeroo_docs'] = aeroo_docs
@@ -733,7 +732,7 @@ class Aeroo_report(report_sxw):
     def create_source_odt(self, cr, uid, ids, data, report_xml, context=None):
         if not context:
             context={}
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         results = []
         attach = report_xml.attachment
         aeroo_docs = self.aeroo_docs_enabled(cr) # Detect report_aeroo_docs module
@@ -813,7 +812,7 @@ class Aeroo_report(report_sxw):
         context['print_id'] = aeroo_print.id
         ###############################
         self.logger("Start process %s (%s)" % (self.name, self.table), logging.INFO) # debug mode
-        pool = registry(cr.dbname)
+        pool = pooler.get_pool(cr.dbname)
         if context is None:
             context = {}
         if 'tz' not in context:
