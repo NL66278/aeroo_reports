@@ -19,23 +19,23 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
-
 import os
 import logging
+import fnmatch
+from os.path import join
+from lxml import etree
+from babel.messages import extract
+
 import openerp.tools as tools
 from openerp.tools.translate import (
     trans_parse_rml,
     trans_parse_xsl,
     trans_parse_view,
-    _extract_translatable_qweb_terms
 )
-import fnmatch
-from os.path import join
-from lxml import etree
 from openerp.tools import misc
 from openerp.tools import osutil
-from babel.messages import extract
 import openerp
+from openerp import pooler
 
 
 _logger = logging.getLogger(__name__)
@@ -48,18 +48,14 @@ ENGLISH_SMALL_WORDS = set(
 def extend_trans_generate(lang, modules, cr):
     dbname = cr.dbname
 
-    registry = openerp.registry(dbname)
+    registry = pooler.get_pool(cr.dbname)
     trans_obj = registry['ir.translation']
     model_data_obj = registry['ir.model.data']
     uid = 1
-
-    query = 'SELECT name, model, res_id, module' \
-            '  FROM ir_model_data'
-
+    query = 'SELECT name, model, res_id, module FROM ir_model_data'
     query_models = """SELECT m.id, m.model, imd.module
             FROM ir_model AS m, ir_model_data AS imd
             WHERE m.id = imd.res_id AND imd.model = 'ir.model' """
-
     if 'all_installed' in modules:
         query += (
             " WHERE module IN ("
@@ -78,10 +74,9 @@ def extend_trans_generate(lang, modules, cr):
         query_param = (tuple(modules),)
     query += ' ORDER BY module, model, name'
     query_models += ' ORDER BY module, model'
-
     cr.execute(query, query_param)
-
     _to_translate = set()
+
     def push_translation(module, type, name, id, source, comments=None):
         # empty and one-letter terms are ignored, they probably are not meant
         # to be translated, and would be very hard to translate anyway.
@@ -117,27 +112,22 @@ def extend_trans_generate(lang, modules, cr):
             _logger.error("Unable to find object %r", model)
             continue
 
-        Model = registry[model]
-        if not Model._translate:
+        model_obj = registry[model]
+        if not model_obj._translate:
             # explicitly disabled
             continue
-
-        obj = Model.browse(cr, uid, res_id)
+        obj = model_obj.browse(cr, uid, res_id)
         if not obj.exists():
-            _logger.warning("Unable to find object %r with id %d", model, res_id)
+            _logger.warning(
+                "Unable to find object %r with id %d",
+                model, res_id
+            )
             continue
-
         if model == 'ir.ui.view':
             d = etree.XML(encode(obj.arch))
-            if obj.type == 'qweb':  # RPO: Will not happen on v7..
-                view_id = get_root_view(xml_name)
-                push_qweb = lambda t,l: push(
-                    module, 'view', 'website', view_id, t)
-                _extract_translatable_qweb_terms(d, push_qweb)
-            else:
-                push_view = lambda t,l: push(
-                    module, 'view', obj.model, xml_name, t)
-                trans_parse_view(d, push_view)
+            push_view = lambda t,l: push(
+                module, 'view', obj.model, xml_name, t)
+            trans_parse_view(d, push_view)
         elif model=='ir.actions.wizard':
             pass # TODO Can model really be 'ir.actions.wizard' ?
 
@@ -249,7 +239,9 @@ def extend_trans_generate(lang, modules, cr):
 
     def push_constraint_msg(module, term_type, model, msg):
         if not hasattr(msg, '__call__'):
-            push_translation(encode(module), term_type, encode(model), 0, encode(msg))
+            push_translation(
+                encode(module), term_type, encode(model), 0, encode(msg)
+            )
 
     def push_local_constraints(module, model, cons_type='sql_constraints'):
         """Climb up the class hierarchy and ignore inherited constraints
@@ -261,7 +253,9 @@ def extend_trans_generate(lang, modules, cr):
                 continue
             constraints = getattr(cls, '_local_' + cons_type, [])
             for constraint in constraints:
-                push_constraint_msg(module, term_type, model._name, constraint[msg_pos])
+                push_constraint_msg(
+                    module, term_type, model._name, constraint[msg_pos]
+                )
 
     for (_, model, module) in cr.fetchall():
         if model not in registry:
@@ -269,16 +263,16 @@ def extend_trans_generate(lang, modules, cr):
             continue
 
         model_obj = registry[model]
-
         if model_obj._constraints:
             push_local_constraints(module, model_obj, 'constraints')
-
         if model_obj._sql_constraints:
             push_local_constraints(module, model_obj, 'sql_constraints')
 
     installed_modules = map(
         lambda m: m['name'],
-        registry['ir.module.module'].search_read(cr, uid, [('state', '=', 'installed')], fields=['name']))
+        registry['ir.module.module'].search_read(
+            cr, uid, [('state', '=', 'installed')], fields=['name'])
+    )
 
     path_list = list(openerp.modules.module.ad_paths)
     # Also scan these non-addon paths
@@ -330,24 +324,33 @@ def extend_trans_generate(lang, modules, cr):
                 babel_extract_terms(fname, path, root)
             # mako provides a babel extractor: http://docs.makotemplates.org/en/latest/usage.html#babel
             for fname in fnmatch.filter(files, '*.mako'):
-                babel_extract_terms(fname, path, root, 'mako', trans_type='report')
+                babel_extract_terms(
+                    fname, path, root, 'mako', trans_type='report'
+                )
             # Javascript source files in the static/src/js directory, rest is ignored (libs)
             if fnmatch.fnmatch(root, '*/static/src/js*'):
                 for fname in fnmatch.filter(files, '*.js'):
-                    babel_extract_terms(fname, path, root, 'javascript',
-                                        extra_comments=[WEB_TRANSLATION_COMMENT],
-                                        extract_keywords={'_t': None, '_lt': None})
+                    babel_extract_terms(
+                        fname, path, root, 'javascript',
+                        extra_comments=[WEB_TRANSLATION_COMMENT],
+                        extract_keywords={'_t': None, '_lt': None}
+                    )
             # QWeb template files
             if fnmatch.fnmatch(root, '*/static/src/xml*'):
                 for fname in fnmatch.filter(files, '*.xml'):
-                    babel_extract_terms(fname, path, root, 'openerp.tools.translate:babel_extract_qweb',
-                                        extra_comments=[WEB_TRANSLATION_COMMENT])
-
+                    babel_extract_terms(
+                        fname, path, root,
+                        'openerp.tools.translate:babel_extract_qweb',
+                        extra_comments=[WEB_TRANSLATION_COMMENT]
+                    )
     out = []
     # translate strings marked as to be translated
     for module, source, name, id, type, comments in sorted(_to_translate):
-        trans = '' if not lang else trans_obj._get_source(cr, uid, name, type, lang, source)
-        out.append((module, type, name, id, source, encode(trans) or '', comments))
+        trans = '' if not lang else trans_obj._get_source(
+            cr, uid, name, type, lang, source)
+        out.append(
+            (module, type, name, id, source, encode(trans) or '', comments)
+        )
     return out
 
 import sys
