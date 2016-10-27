@@ -503,9 +503,10 @@ class report_xml(orm.Model):
             'State of Parser',
             select=True,
         ),
-        'report_type': fields.selection(
-            selection_add=[('aeroo', 'Aeroo Reports')]  # TODO RPO: Not in 7.0
-        ),
+        # RPO: report type in v7 is char not a selection
+        # 'report_type': fields.selection(
+        #     selection_add=[('aeroo', 'Aeroo Reports')],
+        # ),
         'process_sep': fields.boolean(
             'Process Separately',
             help="Generate the report for each object separately,"
