@@ -31,45 +31,44 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ##############################################################################
-
-import os, sys, traceback
+import os
+import sys
+import traceback
 from tempfile import NamedTemporaryFile
-import openerp.report as report
-from openerp.report.report_sxw import report_sxw, report_rml#, browse_record_list
-from pyPdf import PdfFileWriter, PdfFileReader
-
-from openerp.osv.orm import browse_record_list #TODO v8?
-from docs_client_lib import DOCSConnection
 try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-
 from xml.dom import minidom
 import base64
-from openerp import models, registry
-from openerp.osv import osv
-from openerp.tools.translate import _
-import openerp.tools as tools
 import time
 import copy
 import threading
 from random import randint
-from openerp.modules import load_information_from_description_file
-import openerp.release as release
+import logging
+from lxml import etree
+
+from pyPdf import PdfFileWriter, PdfFileReader
 
 from aeroolib import __version__ as aeroolib_version
 from aeroolib.plugins.opendocument import Template, OOSerializer
 from genshi.template import NewTextTemplate
 from genshi.template.eval import StrictLookup
 from genshi import __version__ as genshi_version
-import openerp.pooler as pooler #TODO remove v8
-from lxml import etree
-import logging
+
+from openerp.report.report_sxw import report_sxw, report_rml
+from openerp import registry
+from openerp.osv import osv
+from openerp.tools.translate import _
+import openerp.tools as tools
+from openerp.modules import load_information_from_description_file
+import openerp.release as release
+
+from report_aeroo.ExtraFunctions import ExtraFunctions
+from report_aeroo.docs_client_lib import DOCSConnection
+
 
 logger = logging.getLogger('report_aeroo')
-
-from ExtraFunctions import ExtraFunctions
 
 try:
     aeroo_lock = threading.Lock()
@@ -87,6 +86,7 @@ mime_dict = {'oo-odt':'odt',
              'oo-csv':'csv',
             }
 
+
 class DynamicLookup(StrictLookup):
     '''
     Dynamically changes language in a context
@@ -95,11 +95,12 @@ class DynamicLookup(StrictLookup):
     @classmethod
     def lookup_name(cls, data, name):
         orig = super(DynamicLookup, cls).lookup_name(data, name)
-        if isinstance(orig, models.Model):
+        if isinstance(orig, osv.Model):
             new_lang = data.get('getLang')()
             if orig.env.context.get('lang') != new_lang:
                 orig = orig.with_context(lang = new_lang)
         return orig
+
 
 class Counter(object):
     def __init__(self, name, start=0, interval=1):
@@ -124,6 +125,7 @@ class Counter(object):
         else:
             return self._number-self._interval
 
+
 class AerooPrint(object):
     print_ids = [] # static property
     def __init__(self):
@@ -137,6 +139,7 @@ class AerooPrint(object):
         self.counters = {}
         self.start_time = 0
         self.start_total_time = 0
+
 
 class Aeroo_report(report_sxw):
 
@@ -166,19 +169,17 @@ class Aeroo_report(report_sxw):
                 report_xml = ir_obj.browse(cr, 1, report_xml_ids[0])
             else:
                 report_xml = False
-            #TODO v8 remove, preload_mode is deprecated, as reports themselves are not preloaded
-            #if report_xml and report_xml.preload_mode == 'preload':
-            #    file_data = report_xml.report_sxw_content
-            #    if not file_data:
-            #        self.logger("template is not defined in %s (%s) !" % (name, table), logging.WARNING)
-            #        template_io = None
-            #    else:
-            #        template_io = StringIO()
-            #        template_io.write(base64.decodestring(file_data))
-            #        style_io=self.get_styles_file(cr, 1, report_xml)
-            #    if template_io:
-            #        self.serializer = OOSerializer(template_io, oo_styles=style_io)
-            
+            if report_xml and report_xml.preload_mode == 'preload':
+                file_data = report_xml.report_sxw_content
+                if not file_data:
+                    self.logger("template is not defined in %s (%s) !" % (name, table), logging.WARNING)
+                    template_io = None
+                else:
+                    template_io = StringIO()
+                    template_io.write(base64.decodestring(file_data))
+                    style_io=self.get_styles_file(cr, 1, report_xml)
+                if template_io:
+                    self.serializer = OOSerializer(template_io, oo_styles=style_io)
         except Exception, e:
             logger.error("Error while registering report '%s' (%s)", name, table, exc_info=True)
 
@@ -469,7 +470,7 @@ class Aeroo_report(report_sxw):
         docs_password = icp.get_param(cr, 1, 'aeroo.docs_password') or 'anonymous'
         docs_client = DOCSConnection(docs_host, docs_port, username=docs_username, password=docs_password)
         return docs_client
-        
+
     def create_aeroo_report(self, cr, uid, ids, data, report_xml, context=None, output='odt'):
         """ Returns an aeroo report generated with aeroolib
         """
@@ -483,7 +484,7 @@ class Aeroo_report(report_sxw):
         if self.name=='report.printscreen.list':
             context['model'] = data['model']
             context['ids'] = ids
-        
+
         print_id = context.get('print_id', False)
         aeroo_print = self.active_prints[print_id] # Aeroo print object
         aeroo_print.subreports = []
@@ -548,8 +549,13 @@ class Aeroo_report(report_sxw):
         subcontext = context.copy()
         if deferred:
             del subcontext['deferred_process']
-        oo_parser.localcontext['include_subreport'] = self._subreport(cr, uid, aeroo_print, output='odt', aeroo_docs=aeroo_docs, context=subcontext)
-        oo_parser.localcontext['include_document'] = self._include_document(print_id, aeroo_docs)
+        oo_parser.localcontext['include_subreport'] = self._subreport(
+            cr, uid, aeroo_print, output='odt', aeroo_docs=aeroo_docs,
+            context=subcontext
+        )
+        oo_parser.localcontext['include_document'] = self._include_document(
+            print_id, aeroo_docs
+        )
         oo_parser.localcontext['progress_update'] = deferred and deferred.progress_update or (lambda:True)
         ####### Add counter functons to localcontext #######
         oo_parser.localcontext.update({'def_inc':self._def_inc(aeroo_print),
@@ -558,11 +564,15 @@ class Aeroo_report(report_sxw):
                                       'next':self._next(aeroo_print)})
 
         user_name = pool.get('res.users').browse(cr, uid, uid, {}).name
-        model_id = pool.get('ir.model').search(cr, uid, [('model','=',context.get('active_model', data['model']) or data['model'])])[0]
+        model_id = pool.get('ir.model').search(
+            cr, uid, [
+                ('model', '=', context.get('active_model', data['model']) or
+                 data['model'])
+            ]
+        )[0]
         model_name = pool.get('ir.model').browse(cr, uid, model_id).name
 
         #basic = Template(source=None, filepath=odt_path)
-
         basic.Serializer.add_title(model_name)
         basic.Serializer.add_creation_user(user_name)
         module_info = load_information_from_description_file('report_aeroo')
@@ -572,7 +582,6 @@ class Aeroo_report(report_sxw):
         basic.Serializer.add_custom_property('Odoo %s' % release.version, 'Software')
         basic.Serializer.add_custom_property(module_info['website'], 'URL')
         basic.Serializer.add_creation_date(time.strftime('%Y-%m-%dT%H:%M:%S'))
-
         try:
             if deferred:
                 deferred.set_status(_('Generate document'))
@@ -859,15 +868,26 @@ class Aeroo_report(report_sxw):
             elif report_xml.out_format.code in ['oo-odt','oo-ods','oo-doc','oo-xls','oo-csv','oo-dbf','genshi-raw']:
                 fnct = self.create_source_odt
             else:
-                return super(Aeroo_report, self).create(cr, uid, ids, data, context)
+                return super(Aeroo_report, self).create(
+                    cr, uid, ids, data, context
+                )
         else:
-            raise NotImplementedError(_('Unknown report type: %s') % report_type)
+            raise NotImplementedError(
+                _('Unknown report type: %s') % report_type
+            )
         res = fnct(cr, uid, ids, data, report_xml, context)
         ### Delete printing object ###
         AerooPrint.print_ids.remove(aeroo_print.id)
         del self.active_prints[aeroo_print.id]
         ##############################
-        self.logger("End total process %s (%s), total elapsed time: %s" % (self.name, self.table, time.time() - aeroo_print.start_total_time), logging.INFO) # debug mode
+        self.logger(
+            "End total process %s (%s), total elapsed time: %s" %
+            (self.name,
+             self.table,
+             time.time() - aeroo_print.start_total_time
+            ),
+            logging.INFO
+        )
         if deferred:
             deferred.set_status(_('Completed'))
         return res

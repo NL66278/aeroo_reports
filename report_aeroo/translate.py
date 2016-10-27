@@ -23,7 +23,12 @@
 import os
 import logging
 import openerp.tools as tools
-from openerp.tools.translate import trans_parse_rml, trans_parse_xsl, trans_parse_view, _extract_translatable_qweb_terms
+from openerp.tools.translate import (
+    trans_parse_rml,
+    trans_parse_xsl,
+    trans_parse_view,
+    _extract_translatable_qweb_terms
+)
 import fnmatch
 from os.path import join
 from lxml import etree
@@ -32,10 +37,12 @@ from openerp.tools import osutil
 from babel.messages import extract
 import openerp
 
+
 _logger = logging.getLogger(__name__)
 
 WEB_TRANSLATION_COMMENT = "openerp-web"
-ENGLISH_SMALL_WORDS = set("as at by do go if in me no of ok on or to up us we".split())
+ENGLISH_SMALL_WORDS = set(
+    "as at by do go if in me no of ok on or to up us we".split())
 
 
 def extend_trans_generate(lang, modules, cr):
@@ -54,8 +61,16 @@ def extend_trans_generate(lang, modules, cr):
             WHERE m.id = imd.res_id AND imd.model = 'ir.model' """
 
     if 'all_installed' in modules:
-        query += ' WHERE module IN ( SELECT name FROM ir_module_module WHERE state = \'installed\') '
-        query_models += " AND imd.module in ( SELECT name FROM ir_module_module WHERE state = 'installed') "
+        query += (
+            " WHERE module IN ("
+            " SELECT name FROM ir_module_module"
+            " WHERE state = 'installed')"
+        )
+        query_models += (
+            " AND imd.module in ("
+            " SELECT name FROM ir_module_module"
+            " WHERE state = 'installed') "
+        )
     query_param = None
     if 'all' not in modules:
         query += ' WHERE module IN %s'
@@ -68,11 +83,10 @@ def extend_trans_generate(lang, modules, cr):
 
     _to_translate = set()
     def push_translation(module, type, name, id, source, comments=None):
-        # empty and one-letter terms are ignored, they probably are not meant to be
-        # translated, and would be very hard to translate anyway.
+        # empty and one-letter terms are ignored, they probably are not meant
+        # to be translated, and would be very hard to translate anyway.
         if not source or len(source.strip()) <= 1:
             return
-
         tnx = (module, source, name, id, type, tuple(comments or ()))
         _to_translate.add(tnx)
 
@@ -113,14 +127,16 @@ def extend_trans_generate(lang, modules, cr):
             _logger.warning("Unable to find object %r with id %d", model, res_id)
             continue
 
-        if model=='ir.ui.view':
+        if model == 'ir.ui.view':
             d = etree.XML(encode(obj.arch))
-            if obj.type == 'qweb':
+            if obj.type == 'qweb':  # RPO: Will not happen on v7..
                 view_id = get_root_view(xml_name)
-                push_qweb = lambda t,l: push(module, 'view', 'website', view_id, t)
+                push_qweb = lambda t,l: push(
+                    module, 'view', 'website', view_id, t)
                 _extract_translatable_qweb_terms(d, push_qweb)
             else:
-                push_view = lambda t,l: push(module, 'view', obj.model, xml_name, t)
+                push_view = lambda t,l: push(
+                    module, 'view', obj.model, xml_name, t)
                 trans_parse_view(d, push_view)
         elif model=='ir.actions.wizard':
             pass # TODO Can model really be 'ir.actions.wizard' ?
@@ -138,10 +154,12 @@ def extend_trans_generate(lang, modules, cr):
             field_def = objmodel._columns[field_name]
 
             name = "%s,%s" % (encode(obj.model), field_name)
-            push_translation(module, 'field', name, 0, encode(field_def.string))
+            push_translation(
+                module, 'field', name, 0, encode(field_def.string))
 
             if field_def.help:
-                push_translation(module, 'help', name, 0, encode(field_def.help))
+                push_translation(
+                    module, 'help', name, 0, encode(field_def.help))
 
             if field_def.translate:
                 ids = objmodel.search(cr, uid, [])
@@ -155,20 +173,34 @@ def extend_trans_generate(lang, modules, cr):
                         ('res_id', '=', res_id),
                         ])
                     if not model_data_ids:
-                        push_translation(module, 'model', name, 0, encode(obj_value[field_name]))
+                        push_translation(
+                            module, 'model', name, 0,
+                            encode(obj_value[field_name])
+                        )
 
-            if hasattr(field_def, 'selection') and isinstance(field_def.selection, (list, tuple)):
+            if (hasattr(field_def, 'selection') and
+                    isinstance(field_def.selection, (list, tuple))):
                 for dummy, val in field_def.selection:
-                    push_translation(module, 'selection', name, 0, encode(val))
+                    push_translation(
+                        module, 'selection', name, 0, encode(val)
+                    )
 
         elif model=='ir.actions.report.xml':
             name = encode(obj.report_name)
             fname = ""
             ##### Changes for Aeroo ######
             if obj.report_type == 'aeroo':
-                trans_ids = trans_obj.search(cr, uid, [('type', '=', 'report'),('res_id', '=', obj.id)])
+                trans_ids = trans_obj.search(
+                    cr, uid, [
+                        ('type', '=', 'report'),
+                        ('res_id', '=', obj.id)
+                    ]
+                )
                 for t in trans_obj.read(cr, uid, trans_ids, ['name','src']):
-                    push_translation(module, "report", t['name'], xml_name, t['src'].encode('UTF-8'))
+                    push_translation(
+                        module, "report", t['name'], xml_name,
+                        t['src'].encode('UTF-8')
+                    )
             ##############################
             else:
                 if obj.report_rml:
@@ -185,15 +217,21 @@ def extend_trans_generate(lang, modules, cr):
                         try:
                             d = etree.parse(report_file)
                             for t in parse_func(d.iter()):
-                                push_translation(module, report_type, name, 0, t)
+                                push_translation(
+                                    module, report_type, name, 0, t
+                                )
                         finally:
                             report_file.close()
                     except (IOError, etree.XMLSyntaxError):
-                        _logger.exception("couldn't export translation for report %s %s %s", name, report_type, fname)
+                        _logger.exception(
+                            "couldn't export translation for report %s %s %s",
+                            name, report_type, fname
+                        )
 
         for field_name, field_def in obj._columns.items():
-            if model == 'ir.model' and field_name == 'name' and obj.name == obj.model:
-                # ignore model name if it is the technical one, nothing to translate
+            if (model == 'ir.model' and field_name == 'name' and
+                    obj.name == obj.model):
+                # ignore model name if it is the technical one:
                 continue
             if field_def.translate:
                 name = model + "," + field_name
@@ -201,7 +239,9 @@ def extend_trans_generate(lang, modules, cr):
                     term = obj[field_name] or ''
                 except:
                     term = ''
-                push_translation(module, 'model', name, xml_name, encode(term))
+                push_translation(
+                    module, 'model', name, xml_name, encode(term)
+                )
 
         # End of data for ir.model.data query results
 
@@ -263,8 +303,9 @@ def extend_trans_generate(lang, modules, cr):
             return module, fabsolutepath, frelativepath, display_path
         return None, None, None, None
 
-    def babel_extract_terms(fname, path, root, extract_method="python", trans_type='code',
-                               extra_comments=None, extract_keywords={'_': None}):
+    def babel_extract_terms(
+            fname, path, root, extract_method="python", trans_type='code',
+            extra_comments=None, extract_keywords={'_': None}):
         module, fabsolutepath, _, display_path = verified_module_filepaths(fname, path, root)
         extra_comments = extra_comments or []
         if not module: return

@@ -30,24 +30,24 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ##############################################################################
-from openerp.osv import orm, fields
-from openerp.tools.translate import _
-from openerp.exceptions import except_orm
-
-from openerp.osv.orm import transfer_modifiers_to_node
-from report_aeroo import Aeroo_report
-from openerp.report.report_sxw import rml_parse
-from openerp.report import interface
 import base64, binascii
-import openerp.tools as tools
 import encodings
-
 import sys, os
 import zipimport
-from openerp.tools.config import config
+import logging
 from lxml import etree
 
-import logging
+from openerp.osv import orm, fields
+from openerp import SUPERUSER_ID
+from openerp.tools.translate import _
+from openerp.osv.orm import except_orm
+from openerp.osv.orm import transfer_modifiers_to_node
+from openerp.report.report_sxw import rml_parse
+from openerp.report import interface
+import openerp.tools as tools
+from openerp.tools.config import config
+
+from report_aeroo import Aeroo_report
 
 
 logger = logging.getLogger('report_aeroo')
@@ -70,18 +70,20 @@ class report_stylesheets(orm.Model):
     }
     ### ends Fields
 
+
 class res_company(orm.Model):
     _name = 'res.company'
     _inherit = 'res.company'
 
     ### Fields
     _columns = {
-        'stylesheet_id' fields.many2one(
+        'stylesheet_id': fields.many2one(
             'report.stylesheets',
             'Aeroo Global Stylesheet',
         ),
     }
     ### ends Fields
+
 
 class report_mimetypes(orm.Model):
     '''
@@ -103,7 +105,8 @@ class report_mimetypes(orm.Model):
     }
     ### ends Fields
 
-class report_xml(osv.Model):
+
+class report_xml(orm.Model):
     _name = 'ir.actions.report.xml'
     _inherit = 'ir.actions.report.xml'
 
@@ -177,8 +180,10 @@ class report_xml(osv.Model):
         except SyntaxError, e:
             raise except_orm(_('Syntax Error !'), e)
         except Exception, e:
-            logger.error("Error in 'load_from_source' method",
-                __name__, exc_info=True)
+            logger.error(
+                "Error in 'load_from_source' method %s" % __name__,
+                exc_info=True
+            )
             return None
 
     def link_inherit_report(
@@ -190,7 +195,7 @@ class report_xml(osv.Model):
         if new_replace_report_id:
             inherit_report = recs.browse(new_replace_report_id)
         else:
-            inherit_report = report.replace_report_id  # TODO RPO: report ??
+            inherit_report = recs.replace_report_id  # TODO RPO: report ??
         if inherit_report:
             ir_values_obj = self.pool['ir.values']
             if inherit_report.report_wizard:
@@ -285,7 +290,7 @@ class report_xml(osv.Model):
         service_name = 'report.%s' % name
         if interface.report_int._reports.has_key( service_name ):
             del interface.report_int._reports[service_name]
-        self.env.cr.execute("SELECT * FROM ir_act_report_xml WHERE \
+        cr.execute("SELECT * FROM ir_act_report_xml WHERE \
                              report_name = %s and active = true \
                              ORDER BY id", (name,))
         report = cr.dictfetchall()
@@ -369,7 +374,7 @@ class report_xml(osv.Model):
                     )
                 except IOError, e:
                     if e.errno == 13: # Permission denied on the template file
-                        raise osv.except_osv(_(e.strerror), e.filename)
+                        raise except_orm(_(e.strerror), e.filename)
                     else:
                         logger.error(
                             "Error in '_report_content' method",
@@ -392,7 +397,8 @@ class report_xml(osv.Model):
         l.sort()
         return zip(l, l)
 
-    def _report_content_inv(cr, uid, ids, name, value, arg, context=None):
+    def _report_content_inv(
+            self,cr, uid, ids, name, value, arg, context=None):
         if value:
             self.write(
                 cr, uid, ids,
@@ -575,7 +581,7 @@ class report_xml(osv.Model):
             count=count, context=context
         )
         by_name = len(args) == 1 and [x for x in args if x[0] == 'report_name']
-        if by_name and orig_res and 'print_id' not in self.env.context:
+        if by_name and orig_res and 'print_id' not in context:
             report_name = by_name[0][2]
             replace_rep = super(report_xml, self).search(
                 cr, uid, [('replace_report_id','=',orig_res.ids[0])],
@@ -706,7 +712,7 @@ class report_xml(osv.Model):
                 )
                 if ir_value_ids:
                     if not r['replace_report_id']:
-                        ir_value_obj.unlink(
+                        irval_obj.unlink(
                             cr, uid, ir_value_ids, context=context
                         )
                     recs.unregister_report(r['report_name'])
@@ -919,13 +925,13 @@ class report_xml(osv.Model):
             'name': recs.name + " (copy)",
             'report_name': recs.report_name+"_copy",
         })
-        return = super(report_xml, self).copy(
+        return super(report_xml, self).copy(
             cr, uid, ids, default=default, context=context
         )
 
     def _set_report_wizard(
             self, cr, uid, ids, report_action_id, linked_report_id=False,
-            report_name=False, context=context):
+            report_name=False, context=None):
         if not ids:
             return False
         ir_values_obj = self.pool['ir.values']
@@ -994,7 +1000,7 @@ class report_xml(osv.Model):
         act_win_ids = act_win_obj.search(
             cr, uid, [
                 ('res_model','=','aeroo.print_actions'),
-                ('context','like',str(recs.id)).
+                ('context','like',str(recs.id)),
             ],
             context=context
         )
@@ -1065,7 +1071,7 @@ class report_xml(osv.Model):
                 return True
         return False
 
-    def _set_auto_false(self, cr, uid, ids=None):
+    def _set_auto_false(self, cr, uid, ids=None, context=None):
         if not ids:
             ids = self.search(
                 cr, uid, [
@@ -1078,9 +1084,9 @@ class report_xml(osv.Model):
             self.write(cr, uid, id, {'auto': False}, context=context)
         return True
 
-    def _get_default_outformat(self, cr, uid, context=context):
+    def _get_default_outformat(self, cr, uid, context=None):
         res = self.pool['report.mimetypes'].search(
-            cr, uid, [('code','=','oo-odt')], context=context
+            cr, uid, [('code', '=', 'oo-odt')], context=context
         )
         return res and res[0].id or False
 

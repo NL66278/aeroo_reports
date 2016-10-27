@@ -30,22 +30,20 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ##############################################################################
+import os
+import base64
+import urllib2
 
 from openerp.osv import orm, fields
 from openerp.tools.translate import _
 
 import openerp.tools as tools
-import os, base64
-import urllib2
 from docs_client_lib import DOCSConnection
 from openerp.addons.report_aeroo.report_aeroo import aeroo_lock
 
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
 
 _url = 'http://www.alistek.com/aeroo_banner/v7_0_report_aeroo.png'
+
 
 class report_aeroo_installer(orm.TransientModel):
     _name = 'report.aeroo.installer'
@@ -58,12 +56,15 @@ class report_aeroo_installer(orm.TransientModel):
             return self._logo_image
         try:
             im = urllib2.urlopen(_url.encode("UTF-8"))
-            if im.headers.maintype!='image':
+            if im.headers.maintype != 'image':
                 raise TypeError(im.headers.maintype)
         except Exception, e:
-            path = os.path.join('report_aeroo','config_pixmaps',\
-                    'module_banner.png')
-            image_file = file_data = tools.file_open(path,'rb')
+            path = os.path.join(
+                'report_aeroo',
+                'config_pixmaps',
+                'module_banner.png'
+            )
+            image_file = file_data = tools.file_open(path, 'rb')
             try:
                 file_data = image_file.read()
                 self._logo_image = base64.encodestring(file_data)
@@ -74,7 +75,7 @@ class report_aeroo_installer(orm.TransientModel):
             self._logo_image = base64.encodestring(im.read())
             return self._logo_image
 
-    def _get_image_fn(cr, uid, ids, field_name, arg, context=None):
+    def _get_image_fn(self, cr, uid, ids, field_name, arg, context=None):
         res = {}
         image = self._get_image()
         for rec in self.browse(cr, uid, ids, context=context):
@@ -113,9 +114,12 @@ class docs_config_installer(orm.TransientModel):
             if im.headers.maintype != 'image':
                 raise TypeError(im.headers.maintype)
         except Exception, e:
-            path = os.path.join('report_aeroo','config_pixmaps',
-                    'module_banner.png')
-            image_file = file_data = tools.file_open(path,'rb')
+            path = os.path.join(
+                'report_aeroo',
+                'config_pixmaps',
+                'module_banner.png'
+            )
+            image_file = file_data = tools.file_open(path, 'rb')
             try:
                 file_data = image_file.read()
                 self._logo_image = base64.encodestring(file_data)
@@ -126,7 +130,7 @@ class docs_config_installer(orm.TransientModel):
             self._logo_image = base64.encodestring(im.read())
             return self._logo_image
 
-    def _get_image_fn(cr, uid, ids, field_name, arg, context=None):
+    def _get_image_fn(self, cr, uid, ids, field_name, arg, context=None):
         res = {}
         image = self._get_image()
         for rec in self.browse(cr, uid, ids, context=context):
@@ -139,15 +143,15 @@ class docs_config_installer(orm.TransientModel):
         'host': fields.char('Host', size=64, required=True),
         'port': fields.integer('Port', required=True),
         'auth_type': fields.selection(
-            [('simple','Simple Authentication')],
+            [('simple', 'Simple Authentication')],
             'Authentication',
         ),
         'username': fields.char('Username', size=32),
         'password': fields.char('Password', size=32),
         'state': fields.selection(
-            [('init','Init'),
-             ('error','Error'),
-             ('done','Done'),
+            [('init', 'Init'),
+             ('error', 'Error'),
+             ('done', 'Done'),
             ],
             'State', select=True, readonly=True
         ),
@@ -189,7 +193,7 @@ class docs_config_installer(orm.TransientModel):
         if not ids:
             return
         icp = self.pool['ir.config_parameter']
-        this_obj = self.browse(cr, uid, ids, context=context)[0]:
+        this_obj = self.browse(cr, uid, ids, context=context)[0]
         icp.set_param('aeroo.docs_enabled', str(this_obj.enabled))
         icp.set_param('aeroo.docs_host', this_obj.host)
         icp.set_param('aeroo.docs_port', this_obj.port)
@@ -215,12 +219,12 @@ class docs_config_installer(orm.TransientModel):
             except Exception as e:
                 error_details = str(e)
                 state = 'error'
-        if state=='error':
+        if state == 'error':
             msg = _(
                 'Failure! Connection to DOCS service was not established ' +
                 'or convertion to PDF unsuccessful!'
             )
-        elif state=='done' and not this_obj.enabled:
+        elif state == 'done' and not this_obj.enabled:
             msg = _('Connection to Aeroo DOCS disabled!')
         else:
             msg = _(

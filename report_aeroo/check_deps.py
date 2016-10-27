@@ -1,8 +1,9 @@
 # -*- encoding: utf-8 -*-
-################################################################################
+#############################################################################
 #
-# Copyright (c) 2009-2014 Alistek ( http://www.alistek.com ) All Rights Reserved.
-#                    General contacts <info@alistek.com>
+# Copyright (c) 2009-2014 Alistek ( http://www.alistek.com )
+#    All Rights Reserved.
+#    General contacts <info@alistek.com>
 #
 # WARNING: This program as such is intended to be used by professional
 # programmers who take the whole responsability of assessing all potential
@@ -28,7 +29,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
-################################################################################
+#############################################################################
 
 from openerp.osv import osv
 from openerp.tools.translate import _
@@ -43,9 +44,11 @@ def check_deps(check_list):
     for imp in check_list:
         try:
             exec imp in {}
-        except ImportError,e:
+        except ImportError, e:
             error = True
             import_errors.append(str(e))
     if error:
-        raise osv.except_osv(_('Warning!')+' '+_('Unmet python dependencies!'), '\n'.join(import_errors))
-
+        raise osv.except_osv(
+            _('Warning!') + ' ' + _('Unmet python dependencies!'),
+            '\n'.join(import_errors)
+        )
