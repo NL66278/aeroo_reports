@@ -38,6 +38,7 @@ __all__ = [
     'check_deps',
 ]
 
+
 def check_deps(check_list):
     error = False
     import_errors = []

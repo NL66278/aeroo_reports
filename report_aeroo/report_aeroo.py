@@ -189,7 +189,7 @@ class Aeroo_report(report_sxw):
             return table_obj and table_obj.browse(cr, uid, ids, context=context) or []
         return super(Aeroo_report, self).getObjects(cr, uid, ids, context)
 
-    ##### Counter functions #####
+    # ### Counter functions #####
     def _def_inc(self, aeroo_print):
         def def_inc(name, start=0, interval=1):
             aeroo_print.counters[name] = Counter(name, start, interval)
@@ -209,7 +209,7 @@ class Aeroo_report(report_sxw):
         def next(name):
             return aeroo_print.counters[name].next()
         return next
-    #############################
+    # ###########################
 
     def _epl_asimage(self, data, aeroo_print):
         from PIL import Image
@@ -286,13 +286,13 @@ class Aeroo_report(report_sxw):
     def _subreport(self, cr, uid, aeroo_print, output='odt', aeroo_docs=False, context={}):
         pool = pooler.get_pool(cr.dbname)
         ir_obj = pool.get('ir.actions.report.xml')
-        #### for odt documents ####
+        # ## for odt documents ####
         def odt_subreport(name=None, obj=None):
             if not aeroo_docs:
                 return _("Error! Subreports not available!")
             report_xml_ids = ir_obj.search(cr, uid, [('report_name', '=', name)], context=context)
             if report_xml_ids:
-                service = report.interface.report_int._reports['report.%s' % name]
+                service = report_rml.interface.report_int._reports['report.%s' % name]
                 report_xml = ir_obj.browse(cr, uid, report_xml_ids[0], context=context)
                 data = {'model': obj._table_name, 'id': obj.id, 'report_type': 'aeroo', 'in_format': 'oo-odt'}
                 ### Get new printing object ###
@@ -316,7 +316,7 @@ class Aeroo_report(report_sxw):
 
                 return "<insert_doc('%s')>" % temp_file.name
             return None
-        #### for text documents ####
+        # ## for text documents ####
         def raw_subreport(name=None, obj=None):
             report_xml_ids = ir_obj.search(cr, uid, [('report_name', '=', name)], context=context)
             if report_xml_ids:
@@ -400,9 +400,13 @@ class Aeroo_report(report_sxw):
                 self.get_other_template(cr, uid, model, rec_id, oo_parser) or report_xml.report_sxw_content # Get other Template
         if not file_data or file_data=='False':
             raise osv.except_osv(_('Error!'), _('No template found!'))
-        ################################################
+        # ##############################################
         if not file_data:
-            self.logger("End process %s (%s), elapsed time: %s" % (self.name, self.table, time.time() - aeroo_print.start_time), logging.INFO) # debug mode
+            self.logger(
+                "End process %s (%s), elapsed time: %s" %
+                (self.name, self.table, time.time() - aeroo_print.start_time),
+                logging.INFO
+            )  # debug mode
             return False, output
 
         print_id = context.get('print_id', False)
@@ -506,7 +510,7 @@ class Aeroo_report(report_sxw):
         xfunc = ExtraFunctions(cr, uid, report_xml.id, oo_parser.localcontext)
         oo_parser.localcontext.update(xfunc.functions)
 
-        #company_id = objects and 'company_id' in objects[0]._table._columns.keys() and \
+        # company_id = objects and 'company_id' in objects[0]._table._columns.keys() and \
         #                        objects[0].company_id and objects[0].company_id.id or False # for object company usage
         company_id = False
         style_io=self.get_styles_file(cr, uid, report_xml, company=company_id, context=context)
@@ -520,7 +524,11 @@ class Aeroo_report(report_sxw):
             rec_id = context.get('active_id', data.get('id')) or data.get('id')
             file_data = self.get_other_template(cr, uid, model, rec_id, oo_parser)
         if not file_data and not report_xml.report_sxw_content:
-            self.logger("End process %s (%s), elapsed time: %s" % (self.name, self.table, time.time() - aeroo_print.start_time), logging.INFO) # debug mode
+            self.logger(
+                "End process %s (%s), elapsed time: %s" %
+                (self.name, self.table, time.time() - aeroo_print.start_time),
+                logging.INFO
+            )  # debug mode
             return False, output
         #elif file_data:
         #    template_io = StringIO()
@@ -876,10 +884,10 @@ class Aeroo_report(report_sxw):
                 _('Unknown report type: %s') % report_type
             )
         res = fnct(cr, uid, ids, data, report_xml, context)
-        ### Delete printing object ###
+        # # Delete printing object ###
         AerooPrint.print_ids.remove(aeroo_print.id)
         del self.active_prints[aeroo_print.id]
-        ##############################
+        # ############################
         self.logger(
             "End total process %s (%s), total elapsed time: %s" %
             (self.name,
@@ -892,9 +900,9 @@ class Aeroo_report(report_sxw):
             deferred.set_status(_('Completed'))
         return res
 
+
 class ReportTypeException(Exception):
     def __init__(self, value):
         self.parameter = value
     def __str__(self):
         return repr(self.parameter)
-

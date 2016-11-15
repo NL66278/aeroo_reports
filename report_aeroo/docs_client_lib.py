@@ -33,6 +33,7 @@
 # Warning: this software is in alpha stage, all interfaces are subject to change
 # without prior notice
 
+import os
 import json
 import requests
 from base64 import b64encode, b64decode
@@ -46,7 +47,7 @@ class ServerException(Exception):
     pass
 
 class DOCSConnection():
-    
+
     def __init__(self, host=DOCSHOST, port=DOCSPORT, username=None, password=None):
         assert isinstance(host, basestring) and isinstance(port, (basestring, int))
         self.host = host
@@ -56,7 +57,7 @@ class DOCSConnection():
         self.url = 'http://%s:%s/' % (self.host, self.port)
         self.username = username
         self.password = password
-    
+
     def _initpack(self, method):
         return {
                 "jsonrpc": "2.0",
@@ -67,7 +68,7 @@ class DOCSConnection():
                            'password': self.password
                           },
                 }
-    
+
     def test(self, ctd=None):
         # ctd stands for crash test dummy file
         path = ctd or os.path.join('report_aeroo', 'test_temp.odt')
@@ -84,7 +85,7 @@ class DOCSConnection():
         if not join_result:
             raise ServerException("Document join error.")
         return True
-        
+
     def upload(self, data, filename=False):
         assert len(data) > 0
         data = b64encode(data)
@@ -121,7 +122,7 @@ class DOCSConnection():
             self.url, data = json.dumps(payload), headers=HEADERS).json()
         self._checkerror(response)
         return 'result' in response and b64decode(response['result']) or False
-        
+
     def join(self, idents, in_mime=False, out_mime=False):
         payload = self._initpack('join')
         payload['params'].update({'idents': idents})
@@ -133,7 +134,7 @@ class DOCSConnection():
             self.url, data = json.dumps(payload), headers=HEADERS).json()
         self._checkerror(response)
         return 'result' in response and b64decode(response['result']) or False
-        
+
     def _checkerror(self, response):
         if 'error' in response:
             raise ServerException(response['error']['message'])

@@ -37,7 +37,7 @@ from openerp.osv.orm import orm_exception
 from openerp.report import interface
 
 
-class report_print_actions(models.TransientModel):
+class report_print_actions(orm.TransientModel):
     _name = 'aeroo.print_actions'
     _description = 'Aeroo reports print wizard'
 
@@ -54,7 +54,7 @@ class report_print_actions(models.TransientModel):
     def check_if_deferred(self, report_xml, print_ids):
         extras = report_xml.extras.split(',')
         if ('deferred_processing' in extras and
-                report_xml.deferred! = 'off' and
+                report_xml.deferred != 'off' and
                 len(print_ids) >= report_xml.deferred_limit):
             return True
         return False
@@ -96,12 +96,12 @@ class report_print_actions(models.TransientModel):
         act_win['view_type'] = 'form'
         act_win['view_mode'] = 'form,tree'
         return act_win
-    
+
     def simple_print(self, cr, uid, ids, context=None):
         report_xml = self._get_report(cr, uid, ids, context=context)
         recs = self.browse(cr, uid, ids[0], context=context)
         data = {
-            'model': report_xml.model, 
+            'model': report_xml.model,
             'ids': recs.print_ids,
             'id': context['active_id'],
             'report_type': 'aeroo'
@@ -112,7 +112,7 @@ class report_print_actions(models.TransientModel):
             'datas': data,
             'context': context
         }
-    
+
     def get_strids(self, cr, uid, ids, context=None):
         recs = self.browse(cr, uid, ids[0], context=context)
         valid_input = re.match(
@@ -122,7 +122,7 @@ class report_print_actions(models.TransientModel):
         if not valid_input:
             raise orm_exception(_("Error"), _("Wrong or not ids!"))
         return eval(recs.print_ids, {})
-    
+
     def to_print(self, cr, uid, ids, context=None):
         report_xml = self._get_report(cr, uid, ids, context=context)
         obj_print_ids = self.get_strids(cr, uid, ids, context=context)
@@ -138,7 +138,7 @@ class report_print_actions(models.TransientModel):
                     copies -= 1
             if self.check_if_deferred(report_xml, print_ids):
                 self.write(
-                        crt, uid, ids, {
+                        cr, uid, ids, {
                         'state': 'confirm',
                         'message': _(
                             "This process may take too long for interactive \
@@ -174,16 +174,16 @@ class report_print_actions(models.TransientModel):
             return [(str(r.id), r.name) for r in mtyp_ids]
         else:
             return []
-    
+
     ### Fields
-    _columns = { 
+    _columns = {
         'out_format': fields.selection(
             selection=_out_formats_get,
             string='Output format',
             required=True,
         ),
         'out_format_code': fields.char(
-            string='Output format code', 
+            string='Output format code',
             size=16,
             required=False,
             readonly=True,
@@ -207,7 +207,7 @@ class report_print_actions(models.TransientModel):
             'ir.actions.report.xml',
             'Report',
         ),
-    } 
+    }
     ### ends Fields
 
     def onchange_out_format(
@@ -225,7 +225,7 @@ class report_print_actions(models.TransientModel):
         return report_id and self.pool['ir.actions.report.xml'].browse(
             cr, uid, report_id, context=context
         ) or False
-    
+
     def default_get(self, cr, uid, allfields, context=None):
         res = super(report_print_actions, self).default_get(
             cr, uid, allfields, context=None
@@ -256,7 +256,7 @@ class report_print_actions(models.TransientModel):
         if 'report_id' in allfields:
             res['report_id'] = report_xml.id
         return res
-    
+
     _defaults = {
         'state': 'draft',
     }

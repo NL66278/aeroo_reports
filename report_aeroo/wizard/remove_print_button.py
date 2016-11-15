@@ -33,6 +33,7 @@
 from openerp.tools.translate import _
 from openerp.osv import osv, fields
 
+
 def _reopen(self, res_id, model):
     return {'type': 'ir.actions.act_window',
             'view_mode': 'form',
@@ -41,6 +42,7 @@ def _reopen(self, res_id, model):
             'res_model': self._name,
             'target': 'new',
     }
+
 
 class aeroo_remove_print_button(osv.osv_memory):
     '''
@@ -60,17 +62,16 @@ class aeroo_remove_print_button(osv.osv_memory):
                 act_win_context = eval(act_win.context, {})
                 if act_win_context.get('report_action_id')==report.id:
                     values['state'] = 'remove'
-                    break;
+                    break
             else:
                 values['state'] = 'no_exist'
         else:
             irval_mod = self.pool.get('ir.values')
             ids = irval_mod.search(cr, uid, [('value','=',report.type+','+str(report.id))])
             if not ids:
-	            values['state'] = 'no_exist'
+                values['state'] = 'no_exist'
             else:
-	            values['state'] = 'remove'
-
+                values['state'] = 'remove'
         return values
 
     def do_action(self, cr, uid, ids, context):
@@ -83,15 +84,14 @@ class aeroo_remove_print_button(osv.osv_memory):
         res = irval_mod.unlink(cr, uid, [event_id])
         this.write({'state':'done'})
         return _reopen(self, this.id, this._model)
-    
+
     _columns = {
         'state':fields.selection([
             ('remove','Remove'),
             ('no_exist','Not Exist'),
             ('done','Done'),
-            
+
         ],'State', select=True, readonly=True),
     }
 
 aeroo_remove_print_button()
-

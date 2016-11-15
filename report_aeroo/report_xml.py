@@ -30,9 +30,12 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ##############################################################################
-import base64, binascii
+import base64
+import binascii
 import encodings
-import sys, os
+import sys
+import os
+import imp
 import zipimport
 import logging
 from lxml import etree
@@ -60,7 +63,7 @@ class report_stylesheets(orm.Model):
     _name = 'report.stylesheets'
     _description = 'Report Stylesheets'
 
-    ### Fields
+    # # Fields
     _columns = {
         'name': fields.char('Name', size=64, required=True),
         'report_styles': fields.binary(
@@ -68,21 +71,21 @@ class report_stylesheets(orm.Model):
             help='OpenOffice.org stylesheet (.odt)'
         ),
     }
-    ### ends Fields
+    # # ends Fields
 
 
 class res_company(orm.Model):
     _name = 'res.company'
     _inherit = 'res.company'
 
-    ### Fields
+    # # Fields
     _columns = {
         'stylesheet_id': fields.many2one(
             'report.stylesheets',
             'Aeroo Global Stylesheet',
         ),
     }
-    ### ends Fields
+    # # ends Fields
 
 
 class report_mimetypes(orm.Model):
@@ -92,7 +95,7 @@ class report_mimetypes(orm.Model):
     _name = 'report.mimetypes'
     _description = 'Report Mime-Types'
 
-    ### Fields
+    # # Fields
     _columns = {
         'name': fields.char('Name', size=64, required=True, readonly=True),
         'code': fields.char('Code', size=16, required=True, readonly=True),
@@ -103,7 +106,7 @@ class report_mimetypes(orm.Model):
         ),
         'filter_name': fields.char('Filter Name', size=128, readonly=True),
     }
-    ### ends Fields
+    # # ends Fields
 
 
 class report_xml(orm.Model):

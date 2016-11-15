@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
 #
-# Copyright (c) 2008-2012 Alistek Ltd (http://www.alistek.com) All Rights Reserved.
-#                    General contacts <info@alistek.com>
+# Copyright (c) 2008-2012 Alistek Ltd (http://www.alistek.com)
+#   All Rights Reserved.
+#   General contacts <info@alistek.com>
 #
 # WARNING: This program as such is intended to be used by professional
 # programmers who take the whole responsability of assessing all potential
@@ -35,9 +36,10 @@ from openerp.osv import orm, fields
 from openerp.tools.translate import _
 from openerp.osv.orm import orm_exception
 
-class report_print_by_action(models.TransientModel):
+
+class report_print_by_action(orm.TransientModel):
     _name = 'aeroo.print_by_action'
-    
+
     def to_print(self, cr, uid, ids, context=None):
         recs = self.browse(cr, uid, ids, context=context)
         valid_input = re.match(
@@ -59,49 +61,52 @@ class report_print_by_action(models.TransientModel):
                 'id': print_ids[0],
                 'report_type': 'aeroo'
                 }
-        res =  {
+        res = {
                 'type': 'ir.actions.report.xml',
                 'report_name': report.report_name,
                 'datas': data,
                 'context': recs.env.context
                 }
         return res
-    
-    ### Fields
+
+    # Fields
     _columns = {
         'name': fields.text('Object Model', readonly=True),
-        'object_ids:' fields.char(
+        'object_ids': fields.char(
             'Object IDs', size=250, required=True,
             help="Single ID or number of comma separated record IDs"
         ),
     }
-    ### ends Fields
-        
+    # ends Fields
+
     def fields_view_get(
             self, cr, uid, view_id=None, view_type='form', toolbar=False,
             submenu=False, context=None):
-        if self.env.context.get('active_id'):
+        context = context or {}
+        if context.get('active_ids'):
             report = self.pool['ir.actions.report.xml'].browse(
-                self.env.context['active_ids']
+                cr, uid, context['active_ids'], context=context
             )
             if report.report_name == 'aeroo.printscreen.list':
                 raise orm_exception(
                     _("Error"),
-                    _("Print Screen report does not support this functionality!")
+                    _("Print Screen report does not support"
+                      " this functionality!")
                 )
         res = super(report_print_by_action, self).fields_view_get(
-            view_id, view_type, toolbar=toolbar, submenu=submenu
+            cr, uid, view_id, view_type, toolbar=toolbar, submenu=submenu,
+            context=context
         )
         return res
-    
-    def _get_model(self, cr, uid, context=context):
+
+    def _get_model(self, cr, uid, context=None):
         rep_obj = self.pool['ir.actions.report.xml']
         report = rep_obj.browse(
             cr, uid, context['active_ids'], context=context
         )
         return report[0].model
-    
-    def _get_last_ids(self, cr, uid, context=context):
+
+    def _get_last_ids(self, cr, uid, context=None):
         last_call = self.search(
             cr, uid, [
                 ('name', '=', self._get_model()),

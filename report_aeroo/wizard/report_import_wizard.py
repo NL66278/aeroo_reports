@@ -29,7 +29,6 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ##############################################################################
-
 from openerp.osv import osv, fields
 from openerp.tools import convert_xml_import
 from openerp.tools.translate import _
@@ -41,10 +40,11 @@ try:
 except ImportError:
     from StringIO import StringIO
 
+
 class report_aeroo_import(osv.osv_memory):
     _name = 'aeroo.report_import'
     _description = 'Aeroo report import wizard'
-    
+
     _columns = {
         'name':fields.char('Name', size=64),
         'file':fields.binary('Aeroo report file', filters='*.aeroo', required=True),
@@ -53,9 +53,9 @@ class report_aeroo_import(osv.osv_memory):
             ('draft','Draft'),
             ('info','Info'),
             ('done','Done'),
-            
+
         ],'State', select=True, readonly=True),
-                        
+
     }
 
     def default_get(self, cr, uid, fields_list, context=None):
@@ -144,8 +144,7 @@ class report_aeroo_import(osv.osv_memory):
         act_win['domain'] = [('id','in',ids)]
         act_win['context'] = {'default_ids':ids}
         return act_win
-        
+
     _defaults = {
         'state': 'draft',
     }
-

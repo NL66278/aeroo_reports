@@ -30,7 +30,6 @@
 #
 ################################################################################
 from openerp import pooler
-from openerp.tools.translate import _
 from barcode import barcode
 from openerp.tools import translate
 #from currency_to_text import currency_to_text
@@ -40,14 +39,14 @@ import StringIO
 from PIL import Image
 import time
 import openerp.osv as osv
-from openerp.report import report_sxw
-import openerp.netsvc as netsvc
 from openerp.tools.safe_eval import safe_eval as eval
 from aeroolib.plugins.opendocument import _filter
 
 from openerp.osv.orm import browse_record_list #TODO v8?
 
 import logging
+
+
 logger = logging.getLogger('report_aeroo')
 
 try:
@@ -60,7 +59,7 @@ try:
     import markdown
     from markdown import Markdown # use python-markdown library
     from markdown.inlinepatterns import AutomailPattern
-    
+
     class AutomailPattern_mod (AutomailPattern, object):
         def __init__(self, *args, **kwargs):
             super(AutomailPattern_mod, self).__init__(*args, **kwargs)
@@ -70,7 +69,7 @@ try:
             href = ''.join([chr(int(a.replace(markdown.AMP_SUBSTITUTE+'#', ''))) for a in el.get('href').split(';') if a])
             el.set('href', href)
             return el
-    
+
     markdown.inlinepatterns.AutomailPattern = AutomailPattern_mod # easy hack for correct displaying in Joomla
 
 except ImportError, e:
@@ -83,6 +82,7 @@ except ImportError, e:
     wikitext_ok = False
 else:
     wikitext_ok = True
+
 
 def domain2statement(domain):
     statement=''
@@ -497,7 +497,7 @@ class ExtraFunctions(object):
             return None
 
     def debugit(self, object):
-        """ Run the server from command line and 
+        """ Run the server from command line and
             call 'debugit' from the template to inspect variables.
         """
         import pdb;pdb.set_trace()
@@ -527,7 +527,7 @@ class ExtraFunctions(object):
                 '&': '&amp;',
                 '"': '&quot;',
                 "'": '&apos;' }
-        
+
         if type(s) is str:
             s.decode()
         try:
@@ -540,7 +540,7 @@ class ExtraFunctions(object):
             # filter out reserved and "unsafe" characters
             pos = '''<>$&+,/\:;=?@'"#%{}|^~[]()`'''.find(c)
             if pos >= 0: return False
-            
+
             # filter out ASCII Control characters and unhandled Non-ASCII characters
             ordc = ord(c)
             if (ordc >= 0 and ordc <= 31) or (ordc >= 127 and ordc <= 255): return False

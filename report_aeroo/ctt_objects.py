@@ -11,12 +11,14 @@
 import os
 supported_language = {}
 
+
 if __name__ == '__main__':
     from sys import exit
     error = '''This code is part of Report Aeroo package!
     Not to be used separately...'''
     exit(error)
-    
+
+
 def currency_to_text(sum, currency_code, language_code):
     if language_code not in supported_language:
         raise Exception('Not supported or no language: %s' % language_code)
@@ -24,7 +26,9 @@ def currency_to_text(sum, currency_code, language_code):
         suppl = supported_language[language_code]
         return suppl.currency_to_text(sum, currency_code)
 
+
 class ctt_language(object):
+
     def _init_lang(self):
         pass
 
@@ -40,13 +44,13 @@ class ctt_language(object):
         import_submodules('currency', currencies, 0)
 
     def check_sum(self):
-        if sum < self.minbound or sum > self.maxbound : 
+        if sum < self.minbound or sum > self.maxbound :
             raise Exception(\
                 """Sum out of bounds: must be from %s to %s""" % \
                 (str(self.minbound), str(self.maxbound)))
 
     def check_currency(self):
-        if currency not in supported_currency: 
+        if currency not in supported_currency:
             raise Exception(\
                 """Unsupported or no currency: must be one of (%s)""" % \
                 ', '.join(self.supported_currency))
@@ -100,6 +104,7 @@ class ctt_language(object):
 
 
 class ctt_currency(object):
+
     def _init_currency(self):
         pass
 
@@ -143,6 +148,7 @@ class ctt_currency(object):
         else:
             return self.frc_plural
 
+
 def __filter_names(to_import, package):
     folder = os.path.split(package.__file__)[0]
     for name in os.listdir(folder):
@@ -153,10 +159,12 @@ def __filter_names(to_import, package):
             if len(name) == 5 and not name.startswith("__"):
                 yield name
 
+
 def import_submodules(to_import, package, level=-1):
     names = list(__filter_names(to_import, package))
     m = __import__(package.__name__, globals(), locals(), names, level)
     return dict((name, getattr(m, name)) for name in names)
+
 
 import ctt_languages
 import_submodules('language', ctt_languages, 0)

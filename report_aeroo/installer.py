@@ -100,6 +100,7 @@ class report_aeroo_installer(orm.TransientModel):
         'link':'http://www.alistek.com',
     }
 
+
 class docs_config_installer(orm.TransientModel):
     _name = 'docs_config.installer'
     _inherit = 'res.config.installer'
