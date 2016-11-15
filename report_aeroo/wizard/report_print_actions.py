@@ -33,7 +33,7 @@ import re
 
 from openerp.osv import orm, fields
 from openerp.tools.translate import _
-from openerp.osv.orm import orm_exception
+from openerp.osv.orm import except_orm
 from openerp.report import interface
 
 
@@ -120,7 +120,7 @@ class report_print_actions(orm.TransientModel):
             recs.print_ids
         )
         if not valid_input:
-            raise orm_exception(_("Error"), _("Wrong or not ids!"))
+            raise except_orm(_("Error"), _("Wrong or not ids!"))
         return eval(recs.print_ids, {})
 
     def to_print(self, cr, uid, ids, context=None):

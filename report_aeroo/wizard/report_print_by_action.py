@@ -34,7 +34,7 @@ import re
 
 from openerp.osv import orm, fields
 from openerp.tools.translate import _
-from openerp.osv.orm import orm_exception
+from openerp.osv.orm import except_orm
 
 
 class report_print_by_action(orm.TransientModel):
@@ -48,7 +48,7 @@ class report_print_by_action(orm.TransientModel):
         )
         valid_input = valid_input and valid_input.group(1) or False
         if not valid_input:
-            raise orm_exception(
+            raise except_orm(
                 _("Error"),
                 _("Input single record ID or number of comma separated IDs!")
             )
@@ -88,7 +88,7 @@ class report_print_by_action(orm.TransientModel):
                 cr, uid, context['active_ids'], context=context
             )
             if report.report_name == 'aeroo.printscreen.list':
-                raise orm_exception(
+                raise except_orm(
                     _("Error"),
                     _("Print Screen report does not support"
                       " this functionality!")
