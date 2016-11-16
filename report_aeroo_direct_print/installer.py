@@ -1,8 +1,9 @@
 # -*- encoding: utf-8 -*-
 ##############################################################################
 #
-# Copyright (c) 2008-2013 Alistek Ltd (http://www.alistek.com) All Rights Reserved.
-#                    General contacts <info@alistek.com>
+# Copyright (c) 2008-2013 Alistek Ltd (http://www.alistek.com)
+#   All Rights Reserved.
+#   General contacts <info@alistek.com>
 #
 # WARNING: This program as such is intended to be used by professional
 # programmers who take the whole responsability of assessing all potential
@@ -36,7 +37,9 @@ import os, base64
 import cups
 import urllib2
 
+
 _url = 'http://www.alistek.com/aeroo_banner/v6_0_report_aeroo_direct_print.png'
+
 
 class aeroo_printer_installer(osv.osv_memory):
     _name = 'aeroo_printer.installer'
@@ -130,7 +133,9 @@ class aeroo_printer_installer(osv.osv_memory):
         'config_logo': _get_image,
     }
 
+
 aeroo_printer_installer()
+
 
 class aeroo_printers_temp(osv.osv_memory):
     _name = 'aeroo.printers.temp'
@@ -147,5 +152,5 @@ class aeroo_printers_temp(osv.osv_memory):
         ],'State', select=True, readonly=True),
     }
     
+    
 aeroo_printers_temp()
-
