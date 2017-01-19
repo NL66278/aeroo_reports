@@ -1,4 +1,4 @@
-# -*- encoding: utf-8 -*-
+# -*- coding: utf-8 -*-
 ##############################################################################
 #
 # Copyright (c) 2008-2013 Alistek Ltd (http://www.alistek.com)
@@ -30,12 +30,12 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ##############################################################################
-
-from openerp.osv import fields, osv
 import openerp.tools as tools
 import os, base64
 import cups
 import urllib2
+
+from openerp.osv import fields, osv
 
 
 _url = 'http://www.alistek.com/aeroo_banner/v6_0_report_aeroo_direct_print.png'
@@ -46,7 +46,8 @@ class aeroo_printer_installer(osv.osv_memory):
     _inherit = 'res.config.installer'
     _logo_image = None
 
-    def _get_image(self, cr, uid, context=None):
+    def _get_image(self, cr, uid, arg, context=None):
+        """For computed field config_logo."""
         if self._logo_image:
             return self._logo_image
         try:
@@ -54,7 +55,9 @@ class aeroo_printer_installer(osv.osv_memory):
             if im.headers.maintype!='image':
                 raise TypeError(im.headers.maintype)
         except Exception, e:
-            path = os.path.join('report_aeroo','config_pixmaps','module_banner.png')
+            path = os.path.join(
+                'report_aeroo','config_pixmaps','module_banner.png'
+            )
             image_file = file_data = tools.file_open(path,'rb')
             try:
                 file_data = image_file.read()
@@ -68,27 +71,51 @@ class aeroo_printer_installer(osv.osv_memory):
 
     def _get_image_fn(self, cr, uid, ids, name, args, context=None):
         image = self._get_image(cr, uid, context)
-        return dict.fromkeys(ids, image) # ok to use .fromkeys() as the image is same for all 
+        # ok to use .fromkeys() as the image is same for all
+        return dict.fromkeys(ids, image)
 
     _columns = {
-        'printer_ids':fields.one2many('aeroo.printers.temp', 'install_id', 'Printers'),
-        'config_logo': fields.function(_get_image_fn, string='Image', type='binary', method=True),
-        'state':fields.selection([
-            ('init','Init'),
-            ('done','Done'),
-            
-        ],'State', select=True, readonly=True),
+        'printer_ids':fields.one2many(
+            'aeroo.printers.temp',
+            'install_id',
+            'Printers',
+        ),
+        'config_logo': fields.function(
+            _get_image_fn, string='Image', type='binary', method=True,
+        ),
+        'state':fields.selection(
+            [('init','Init'),
+             ('done','Done'),],
+            'State',
+            select=True,
+            readonly=True,
+        ),
+    }
+    _defaults = {
+        'state':'init',
+        'config_logo': _get_image,
     }
 
     def default_get(self, cr, uid, fields, context=None):
         printers_obj = self.pool.get('aeroo.printers')
-        data = super(aeroo_printer_installer, self).default_get(cr, uid, fields, context=context)
+        data = super(aeroo_printer_installer, self).default_get(
+            cr, uid, fields, context=context
+        )
         conn = cups.Connection()
         printers = conn.getPrinters()
-        installed_ids = printers_obj.search(cr, 1, ['|',('active','=',False),('active','=',True)], context=context)
-        printers_installed = printers_obj.read(cr, uid, installed_ids, context=context)
-        new_printers = list(set(printers.keys()).difference(set(map(lambda p: p['code'], printers_installed))))
-
+        installed_ids = printers_obj.search(
+            cr, 1, [
+                '|',('active','=',False),
+                ('active','=',True)
+            ],
+            context=context
+        )
+        printers_installed = printers_obj.read(
+            cr, uid, installed_ids, context=context
+        )
+        new_printers = list(set(printers.keys()).difference(
+            set(map(lambda p: p['code'], printers_installed))
+        ))
         data['printer_ids'] = []
         for p in printers_installed:
             p_temp = p.copy()
@@ -99,10 +126,17 @@ class aeroo_printer_installer(osv.osv_memory):
             data['printer_ids'].append(p_temp)
 
         for new_p in new_printers:
-            note = '\n'.join(map(lambda key: "%s: %s" % (key, printers[new_p][key]), printers[new_p]))
-            p_temp = {'name':printers[new_p]['printer-info'],'code':new_p,'state':'new','note':note}
+            note = '\n'.join(map(
+                lambda key: "%s: %s" % (key, printers[new_p][key]),
+                printers[new_p]
+            ))
+            p_temp = {
+                'name': printers[new_p]['printer-info'],
+                'code': new_p,
+                'state': 'new',
+                'note': note,
+            }
             data['printer_ids'].append(p_temp)
-
         data.update(data)
         return data
 
@@ -111,30 +145,35 @@ class aeroo_printer_installer(osv.osv_memory):
         this = self.browse(cr, uid, ids[0], context=context)
         conn_printers = []
         for printer in this.printer_ids:
-            if printer.state=='new' and not printers_obj.search(cr, uid, [('code','=',printer.code)], context=context):
-                printers_obj.create(cr, uid, {'name':printer.name,
-                                              'code':printer.code,
-                                              'note':printer.note,
-                                             }, context=context)
+            if printer.state == 'new' and not printers_obj.search(
+                    cr, uid, [('code', '=', printer.code)], context=context):
+                printers_obj.create(
+                    cr, uid, {
+                        'name': printer.name,
+                        'code': printer.code,
+                        'note': printer.note,
+                    },
+                    context=context
+                )
                 conn_printers.append((1, printer.id, {'state':'connected'}))
-
-        self.write(cr, uid, ids, {'state':'done','printer_ids':conn_printers}, context=context)
-
+        self.write(
+            cr, uid, ids, {
+                'state': 'done',
+                'printer_ids': conn_printers,
+            },
+            context=context
+        )
         mod_obj = self.pool.get('ir.model.data')
         act_obj = self.pool.get('ir.actions.act_window')
-        result = mod_obj.get_object_reference(cr, uid, 'report_aeroo_direct_print', 'action_aeroo_printer_installer')
+        result = mod_obj.get_object_reference(
+            cr, uid,
+            'report_aeroo_direct_print',
+            'action_aeroo_printer_installer'
+        )
         id = result and result[1] or False
         result = act_obj.read(cr, uid, id, context=context)
         result['res_id'] = ids[0]
         return result
-
-    _defaults = {
-        'state':'init',
-        'config_logo': _get_image,
-    }
-
-
-aeroo_printer_installer()
 
 
 class aeroo_printers_temp(osv.osv_memory):
@@ -148,9 +187,6 @@ class aeroo_printers_temp(osv.osv_memory):
         'state':fields.selection([
             ('connected','Connected'),
             ('new','New'),
-            
+
         ],'State', select=True, readonly=True),
     }
-    
-    
-aeroo_printers_temp()
