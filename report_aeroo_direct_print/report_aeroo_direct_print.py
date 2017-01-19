@@ -35,11 +35,10 @@ from tempfile import NamedTemporaryFile
 
 from openerp.osv import orm, fields
 from openerp.tools.translate import _
-from openerp.report import interface
 
 
-SUPPORTED_PRINT_FORMAT = ('pdf','raw')
-SPECIAL_PRINTERS = ('user-def-gen-purpose-printer','user-def-label-printer')
+SUPPORTED_PRINT_FORMAT = ('pdf', 'raw')
+SPECIAL_PRINTERS = ('user-def-gen-purpose-printer', 'user-def-label-printer')
 
 
 class report_print_actions(orm.TransientModel):
@@ -78,21 +77,20 @@ class report_print_actions(orm.TransientModel):
                  str(report_xml.copies) or '1'}
             )
         else:
-            raise osv.except_osv(
+            raise orm.except_orm(
                 _('Warning!'),
-                _('Unsupported report format "%s".'
-                  " Is not possible direct print to printer.'
-                 ) % res[1]
+                _("Unsupported report format '%s'."
+                  " Is not possible direct print to printer.") % res[1]
             )
         return False
-    
+
     def to_print(self, cr, uid, ids, context=None):
         recs = self.browse(cr, uid, ids, context=context)
         rep_mod = self.pool['ir.actions.report.xml']
         report_xml = rep_mod.browse(
             cr, uid, context['report_action_id'], context=context
         )[0]
-        obj_print_ids = rep_mod.get_strids(c, uid, ids, context=context)
+        obj_print_ids = rep_mod.get_strids(cr, uid, ids, context=context)
         if recs.printer:
             data = {
                 'model': report_xml.model,
@@ -104,25 +102,25 @@ class report_print_actions(orm.TransientModel):
                 cr, uid, obj_print_ids, data, context=context
             )
             if res[1] in SUPPORTED_PRINT_FORMAT:
-                with NamedTemporaryFile(suffix='', 
-                    prefix='aeroo-print-', delete=False) as temp_file:
+                with NamedTemporaryFile(
+                        suffix='',
+                        prefix='aeroo-print-', delete=False) as temp_file:
                     temp_file.write(res[0])
                 conn = cups.Connection()
                 conn.printFile(
                     recs[0].printer,
                     temp_file.name,
-                    '%s (Aeroo Reports Print)' % report_xml.name, 
+                    '%s (Aeroo Reports Print)' % report_xml.name,
                     {'copies':
-                        recs[0].copies > 0 and str(recs[0].copies) or '1'
-                    }
+                        recs[0].copies > 0 and str(recs[0].copies) or '1'}
                 )
                 return {
                     'type': 'ir.actions.act_window_close'
                 }
-        new_recs = recs.with_context(aeroo_dont_print_to_pinter = True)
+        new_recs = recs.with_context(aeroo_dont_print_to_pinter=True)
         res = super(report_print_actions, new_recs).to_print()
         return res
-    
+
     def _get_printers(self, cr, uid, context=None):
         prn_ids = self.pool['aeroo.printers'].search(
             cr, uid, [], context=context
@@ -134,10 +132,10 @@ class report_print_actions(orm.TransientModel):
             (p['code'], p['name']) for p in printers
             if p['code'] not in SPECIAL_PRINTERS
         ]
-    
+
     _columns = {
         'printer': fields.selection(
-            selection=_get_printers, 
+            selection=_get_printers,
             string='Print to Printer',
             required=False,
         ),
@@ -162,7 +160,7 @@ class report_print_actions(orm.TransientModel):
                         ).code
                 else:
                     return report_xml.printer_id.code
-            except Exception, e:
+            except Exception:
                 return False
         return False
 
@@ -174,8 +172,8 @@ class report_print_actions(orm.TransientModel):
 class aeroo_printers(orm.Model):
     _name = 'aeroo.printers'
     _description = 'Available printers for Aeroo direct print'
-    
-    def _get_state(self, cr, uid, ids, field_name, arg, contex=None):
+
+    def _get_state(self, cr, uid, ids, field_name, arg, context=None):
         res = {}
         conn = cups.Connection()
         printers = conn.getPrinters()
@@ -183,7 +181,7 @@ class aeroo_printers(orm.Model):
             state = printers.get(rec.code, {}).get('printer-state')
             res[id] = state and str(state) or state
         return res
-    
+
     _columns = {
         'name': fields.char(
             string='Description',
@@ -224,7 +222,7 @@ class aeroo_printers(orm.Model):
             self, cr, user, args, offset=0, limit=None, order=None,
             context=None, count=False):
         if context and not context.get('view_all'):
-            args.append(('code','not in',SPECIAL_PRINTERS))
+            args.append(('code', 'not in', SPECIAL_PRINTERS))
         res = super(aeroo_printers, self).search(
             cr, user, args, offset=offset, limit=limit, order=order,
             context=context, count=count
@@ -237,32 +235,31 @@ class aeroo_printers(orm.Model):
         for r in self.browse(cr, uid, ids, context=context):
             data = printers.get(r.code)
             if not data:
-                raise osv.except_osv(
+                raise orm.except_orm(
                     _('Error!'),
                     _('Printer "%s" not found!') % r.code
                 )
             note = '\n'.join(map(
                 lambda key: "%s: %s" % (key, data[key]), data
             ))
-            r.write({'note':note}, context=context)
+            r.write({'note': note}, context=context)
         return True
 
     _defaults = {
         'active': True,
-        
     }
 
 
 class res_users(orm.Model):
     _name = 'res.users'
     _inherit = 'res.users'
-    
+
     _columns = {
         'context_def_purpose_printer': fields.many2one(
             'aeroo.printers',
             string='Default General Purpose Printer',
             method=True,
-            domain='[("code","not in",%s)]' % str(SPECIAL_PRINTERS),
+            domain='[("code", "not in", %s)]' % str(SPECIAL_PRINTERS),
             required=False,
             company_dependent=True,
             help="",
@@ -271,7 +268,7 @@ class res_users(orm.Model):
             'aeroo.printers',
             string='Default Label Printer',
             method=True,
-            domain='[("code","not in",%s)]' % str(SPECIAL_PRINTERS),
+            domain='[("code", "not in", %s)]' % str(SPECIAL_PRINTERS),
             required=False,
             company_dependent=True,
             help="",
@@ -282,7 +279,7 @@ class res_users(orm.Model):
 class report_xml(orm.Model):
     _name = 'ir.actions.report.xml'
     _inherit = 'ir.actions.report.xml'
-    
+
     _columns = {
         'printer_id': fields.many2one(
             'aeroo.printers',
@@ -292,31 +289,31 @@ class report_xml(orm.Model):
         ),
     }
 
-    def unlink(self, cr, uid, ids, context={}):
+    def unlink(self, cr, uid, ids, context=None):
         act_srv_obj = self.pool.get('ir.actions.server')
-        reports = self.read(cr, uid, ids, ['report_wizard','printer_id'])
+        reports = self.read(cr, uid, ids, ['report_wizard', 'printer_id'])
         for r in reports:
             if not r['report_wizard'] and r['printer_id']:
                 act_srv_id = act_srv_obj.search(
                     cr, uid, [
-                        ('code','like','# %s #' %
+                        ('code', 'like', '# %s #' %
                          md5.md5(str(r['id'])).hexdigest())], context=context)
                 if act_srv_id:
                     act_srv_obj.unlink(cr, uid, act_srv_id, context=context)
-        res = super(report_xml, self).unlink(cr, uid, ids, context)
+        res = super(report_xml, self).unlink(cr, uid, ids, context=context)
         return res
 
-    def create(self, cr, user, vals, context=None):
+    def create(self, cr, uid, vals, context=None):
         res_id = super(report_xml, self).create(
-            cr, user, vals, context=context
+            cr, uid, vals, context=context
         )
         if (vals.get('report_type') == 'aeroo' and
                 not vals.get('report_wizard') and
                 vals.get('printer_id')):
-            self._set_report_server_action(cr, user, res_id, context=context)
+            self._set_report_server_action(cr, uid, res_id, context=context)
         return res_id
 
-    def write(self, cr, ids, vals, context=None):
+    def write(self, cr, uid, ids, vals, context=None):
         recs = self.browse(cr, ids, context=context)
         for this_obj in recs:
             do_set = False
@@ -331,8 +328,8 @@ class report_xml(orm.Model):
                     do_set = True
                 elif (not printer_id) or report_wizard:
                     self._unset_report_server_action(
-                    cr, uid, [this_obj.id], context=context
-                )
+                        cr, uid, [this_obj.id], context=context
+                    )
             super(report_xml, self).write(
                 cr, [this_obj.id], vals, context=context
             )
@@ -350,13 +347,13 @@ class report_xml(orm.Model):
             ir_values_obj = self.pool.get('ir.values')
             event_id = ir_values_obj.search(
                 cr, uid, [
-                    ('value','=',"ir.actions.report.xml,%s" % report_id),
+                    ('value', '=', "ir.actions.report.xml,%s" % report_id),
                 ]
             )
             if event_id:
                 event_id = event_id[0]
                 model_id = self.pool.get('ir.model').search(
-                    cr, uid, [('model','=',report_xml.model)],
+                    cr, uid, [('model', '=', report_xml.model)],
                     context=context
                 )[0]
                 python_code = """
@@ -365,24 +362,25 @@ report_action_id = %s
 context['report_action_id'] = report_action_id
 print_actions_obj = self.pool.get('aeroo.print_actions')
 printer = print_actions_obj._get_default_printer(cr, uid, context)
-print_actions_obj.report_to_printer(cr, uid, [obj.id], report_action_id, printer, context=context)
+print_actions_obj.report_to_printer(
+    cr, uid, [obj.id], report_action_id, printer, context=context)
 """ % (md5.md5(str(report_id)).hexdigest(), report_id)
-                action_data = {'name':report_xml.name,
-                               'model_id':model_id,
-                               'state':'code',
-                               'code':python_code,
+                action_data = {'name': report_xml.name,
+                               'model_id': model_id,
+                               'state': 'code',
+                               'code': python_code,
                                }
                 act_id = self.pool.get('ir.actions.server').create(
                     cr, uid, action_data, context
                 )
                 ir_values_obj.write(
                     cr, uid, event_id,
-                    {'value':"ir.actions.server,%s" % act_id},
+                    {'value': "ir.actions.server,%s" % act_id},
                     context=context
                 )
                 return act_id
         return False
-    
+
     def _unset_report_server_action(self, cr, uid, ids, context=None):
         ir_values_obj = self.pool['ir.values']
         act_srv_obj = self.pool['ir.actions.server']
@@ -399,7 +397,7 @@ print_actions_obj.report_to_printer(cr, uid, [obj.id], report_action_id, printer
             act_srv_id = act_srv_ids[0]
             event_ids = ir_values_obj.search(
                 cr, uid,
-                [('value','=',"ir.actions.server,%s" % act_srv_id.id)],
+                [('value', '=', "ir.actions.server,%s" % act_srv_id.id)],
                 context=context
             )
             if event_ids:
