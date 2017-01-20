@@ -400,7 +400,6 @@ class Aeroo_report(report_sxw):
                 self.get_other_template(cr, uid, model, rec_id, oo_parser) or report_xml.report_sxw_content # Get other Template
         if not file_data or file_data=='False':
             raise osv.except_osv(_('Error!'), _('No template found!'))
-        # ##############################################
         if not file_data:
             self.logger(
                 "End process %s (%s), elapsed time: %s" %
@@ -434,14 +433,15 @@ class Aeroo_report(report_sxw):
     def _generate_doc(self, docs, data, report_xml, print_id):
         with aeroo_lock:
             token = docs.upload(data)
-            #DC.putDocument(data) #TODO v8 remove
-            #subreports = self.oo_subreports.get(print_id)
             aeroo_print = self.active_prints.get(print_id, False)
-            if aeroo_print:
             if report_xml.out_format.code=='oo-dbf':
                 data = docs.convert(identifier=token)
             else:
-                data = docs.convert(identifier=token, out_mime=mime_dict[report_xml.out_format.code], in_mime=mime_dict[report_xml.in_format])
+                data = docs.convert(
+                    identifier=token,
+                    out_mime=mime_dict[report_xml.out_format.code],
+                    in_mime=mime_dict[report_xml.in_format]
+                )
         return data
 
     def _raise_exception(self, e, print_id):
@@ -453,7 +453,11 @@ class Aeroo_report(report_sxw):
             for sub_report in aeroo_print.subreports:
                 if os.path.isfile(sub_report):
                     os.unlink(sub_report)
-        raise Exception(_("Aeroo Reports: Error while generating the report."), e, str(e), _("For more reference inspect error logs."))
+        raise Exception(
+            _("Aeroo Reports: Error while generating the report."),
+            e, str(e),
+            _("For more reference inspect error logs.")
+        )
 
     def get_docs_conn(self, cr):
         pool = pooler.get_pool(cr.dbname)
@@ -606,8 +610,6 @@ class Aeroo_report(report_sxw):
                     output=report_xml.in_format[3:]
         elif output in ('pdf', 'doc', 'xls'):
             output=report_xml.in_format[3:]
-        #####################################
-
         if report_xml.content_fname:
             output = report_xml.content_fname
         self.logger("End process %s (%s), elapsed time: %s" % (self.name, self.table, time.time() - aeroo_print.start_time), logging.INFO) # debug mode
