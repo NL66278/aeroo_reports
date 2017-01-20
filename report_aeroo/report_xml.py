@@ -620,7 +620,7 @@ class report_xml(orm.Model):
         return res
 
     def read(
-            self, cr, user, ids, fields=None, context=None,
+            self, cr, uid, ids, fields=None, context=None,
             load='_classic_read'):
         # check new model fields, that while not exist in database
         cr.execute(
@@ -634,12 +634,14 @@ class report_xml(orm.Model):
             fields = filter(lambda f: f not in exclude_fields, fields)
         else:
             exclude_fields = []
-        res = super(report_xml, self).read(cr, user, ids, fields, context)
+        res = super(report_xml, self).read(
+            cr, uid, ids, fields=fields, context=context
+        )
         # set default values for new model fields,
         # that while not exist in database
         if exclude_fields:
             defaults = self.default_get(
-                cr, user, exclude_fields, context=context
+                cr, uid, exclude_fields, context=context
             )
             if type(res) == list:
                 for r in res:
