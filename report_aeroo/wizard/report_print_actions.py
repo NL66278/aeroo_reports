@@ -52,7 +52,7 @@ class report_print_actions(orm.TransientModel):
         }
 
     def simple_print(self, cr, uid, ids, context=None):
-        report_xml = self._get_report(cr, uid, ids, context=context)
+        report_xml = self._get_report(cr, uid, context=context)
         recs = self.browse(cr, uid, ids[0], context=context)
         data = {
             'model': report_xml.model,
@@ -78,7 +78,7 @@ class report_print_actions(orm.TransientModel):
         return eval(recs.print_ids, {})
 
     def to_print(self, cr, uid, ids, context=None):
-        report_xml = self._get_report(cr, uid, ids, context=context)
+        report_xml = self._get_report(cr, uid, context=context)
         obj_print_ids = self.get_strids(cr, uid, ids, context=context)
         print_ids = []
         if ids:
@@ -106,15 +106,19 @@ class report_print_actions(orm.TransientModel):
         return res
 
     def _out_formats_get(self, cr, uid, context=None):
-        report_xml = self._get_report()
+        report_xml = self._get_report(cr, uid, context=context)
         if report_xml:
             mtyp_obj = self.pool['report.mimetypes']
-            mtyp_ids = mtyp_obj.search([('compatible_types','=',report_xml.in_format)])
+            mtyp_ids = mtyp_obj.search(
+                cr, uid, [
+                    ('compatible_types', '=', report_xml.in_format),
+                ],
+                context=context
+            )
             return [(str(r.id), r.name) for r in mtyp_ids]
         else:
             return []
 
-    ### Fields
     _columns = {
         'out_format': fields.selection(
             selection=_out_formats_get,
@@ -147,7 +151,6 @@ class report_print_actions(orm.TransientModel):
             'Report',
         ),
     }
-    ### ends Fields
 
     def onchange_out_format(
             self, cr, uid, ids, out_format_id, context=None):
