@@ -76,14 +76,12 @@ class res_company(orm.Model):
     _name = 'res.company'
     _inherit = 'res.company'
 
-    # # Fields
     _columns = {
         'stylesheet_id': fields.many2one(
             'report.stylesheets',
             'Aeroo Global Stylesheet',
         ),
     }
-    # # ends Fields
 
 
 class report_mimetypes(orm.Model):
@@ -93,7 +91,6 @@ class report_mimetypes(orm.Model):
     _name = 'report.mimetypes'
     _description = 'Report Mime-Types'
 
-    # # Fields
     _columns = {
         'name': fields.char('Name', size=64, required=True, readonly=True),
         'code': fields.char('Code', size=16, required=True, readonly=True),
@@ -104,7 +101,6 @@ class report_mimetypes(orm.Model):
         ),
         'filter_name': fields.char('Filter Name', size=128, readonly=True),
     }
-    # # ends Fields
 
 
 class report_xml(orm.Model):
@@ -432,15 +428,6 @@ class report_xml(orm.Model):
         for this_obj in self.browse(cr, uid, ids, context=None):
             if this_obj.aeroo_docs_enabled():
                 extras.append('aeroo_ooo')
-            cr.execute(
-                "SELECT id, state FROM ir_module_module"
-                " WHERE name='deferred_processing'"
-            )
-            deferred_proc_module = cr.dictfetchone()
-            if (deferred_proc_module and
-                    deferred_proc_module['state'] in
-                    ('installed', 'to upgrade')):
-                extras.append('deferred_processing')
             extras = ','.join(result)
             result[this_obj.id] = extras
 
@@ -539,18 +526,6 @@ class report_xml(orm.Model):
             method=True,
             size=256,
         ),
-        'deferred': fields.selection(
-            [('off', _('Off')),
-             ('adaptive', _('Adaptive'))],
-            'Deferred',
-            help="Deferred (aka Batch) reporting, for reporting on large"
-                 " amount of data."
-        ),
-        'deferred_limit': fields.integer(
-            'Deferred Records Limit',
-            help="Records limit at which you are invited to start"
-                 " the deferred process."
-        ),
         'replace_report_id': fields.many2one(
             'ir.actions.report.xml',
             'Replace Report',
@@ -597,61 +572,6 @@ class report_xml(orm.Model):
             cr, uid, view_id, view_type,
             toolbar=toolbar, submenu=submenu, context=context
         )
-        if (view_type == 'form' and
-                context.get('default_report_type') == 'aeroo'):
-            cr.execute(
-                "SELECT id, state FROM ir_module_module"
-                " WHERE name='deferred_processing'"
-            )
-            deferred_proc_module = cr.dictfetchone()
-            if not (
-                    deferred_proc_module and
-                    deferred_proc_module['state'] in
-                    ('installed', 'to upgrade')):
-                doc = etree.XML(res['arch'])
-                deferred_node = doc.xpath("//field[@name='deferred']")
-                modifiers = {'invisible': True}
-                transfer_modifiers_to_node(modifiers, deferred_node[0])
-                deferred_limit_node = doc.xpath(
-                    "//field[@name='deferred_limit']"
-                )
-                transfer_modifiers_to_node(modifiers, deferred_limit_node[0])
-                res['arch'] = etree.tostring(doc)
-        return res
-
-    def read(
-            self, cr, uid, ids, fields=None, context=None,
-            load='_classic_read'):
-        # check new model fields, that while not exist in database
-        cr.execute(
-            "SELECT name FROM ir_model_fields"
-            " WHERE model = 'ir.actions.report.xml'"
-        )
-        true_fields = [val[0] for val in cr.fetchall()]
-        true_fields.append(self.CONCURRENCY_CHECK_FIELD)
-        if fields:
-            exclude_fields = set(fields).difference(set(true_fields))
-            fields = filter(lambda f: f not in exclude_fields, fields)
-        else:
-            exclude_fields = []
-        res = super(report_xml, self).read(
-            cr, uid, ids, fields=fields, context=context
-        )
-        # set default values for new model fields,
-        # that while not exist in database
-        if exclude_fields:
-            defaults = self.default_get(
-                cr, uid, exclude_fields, context=context
-            )
-            if type(res) == list:
-                for r in res:
-                    for exf in exclude_fields:
-                        if exf != 'id':
-                            r[exf] = defaults.get(exf, False)
-            else:
-                for exf in exclude_fields:
-                    if exf != 'id':
-                        res[exf] = defaults.get(exf, False)
         return res
 
     def unlink(self, cr, uid, ids, context=None):
@@ -1081,6 +1001,4 @@ class report_xml(orm.Model):
         self.localcontext.update({})""",
         'active': True,
         'copies': 1,
-        'deferred': 'off',
-        'deferred_limit': 80,
     }

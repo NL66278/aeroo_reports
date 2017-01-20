@@ -70,8 +70,6 @@
                                 <field name="fallback_false" attrs="{'invisible': [('in_format','=','genshi-raw')]}"/>
                                 <field name="process_sep"/>
                                 <field name="active"/>
-                                <field name="deferred"/>
-                                <field name="deferred_limit" attrs="{'invisible':['|',('deferred','=','off'),('deferred','=',False)]}"/>
                             </group>
                             <group string="Parser" colspan="4" col="6">
                             <group colspan="2">
@@ -146,7 +144,6 @@
                         <field name="message" colspan="4" nolabel="1" readonly="1"/>
                     </group>
                     <footer>
-                        <button icon="gtk-yes" name="start_deferred" string="_Yes" type="object" states="confirm"/>
                         <button icon="gtk-no" name="simple_print" string="_No" type="object" states="confirm"/>
                         <button icon="gtk-print" name="to_print" string="_Print" type="object" states="draft" class="oe_highlight"/>
                           or  

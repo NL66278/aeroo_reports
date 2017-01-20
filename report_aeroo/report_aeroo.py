@@ -414,8 +414,6 @@ class Aeroo_report(report_sxw):
 
         oo_parser.localcontext['include_subreport'] = self._subreport(cr, uid, aeroo_print, output='raw', aeroo_docs=False, context=context)
         oo_parser.localcontext['epl2_gw'] = self._epl2_gw(aeroo_print)
-        deferred = context.get('deferred_process')
-        oo_parser.localcontext['progress_update'] = deferred and deferred.progress_update or (lambda:True)
 
         aeroo_print.epl_images = []
         basic = NewTextTemplate(source=base64.decodestring(file_data))
@@ -433,23 +431,16 @@ class Aeroo_report(report_sxw):
         self.logger("End process %s (%s), elapsed time: %s" % (self.name, self.table, time.time() - aeroo_print.start_time), logging.INFO) # debug mode
         return data, output
 
-    def _generate_doc(self, docs, data, report_xml, print_id, deferred):
+    def _generate_doc(self, docs, data, report_xml, print_id):
         with aeroo_lock:
             token = docs.upload(data)
             #DC.putDocument(data) #TODO v8 remove
             #subreports = self.oo_subreports.get(print_id)
             aeroo_print = self.active_prints.get(print_id, False)
             if aeroo_print:
-                if deferred:
-                    deferred.set_status(_('Insert subreports'))
-                #DC.insertSubreports(aeroo_print.subreports) #TODO v8 remove
-                #self.oo_subreports = []
-                #del self.oo_subreports[print_id]
             if report_xml.out_format.code=='oo-dbf':
-                data = docs.convert(identifier=token)#, report_xml.out_format.filter_name, "78") #TODO v8 check the filter name
+                data = docs.convert(identifier=token)
             else:
-                if deferred:
-                    deferred.set_status(_('Document conversion'))
                 data = docs.convert(identifier=token, out_mime=mime_dict[report_xml.out_format.code], in_mime=mime_dict[report_xml.in_format])
         return data
 
@@ -476,11 +467,7 @@ class Aeroo_report(report_sxw):
         return docs_client
 
     def create_aeroo_report(self, cr, uid, ids, data, report_xml, context=None, output='odt'):
-        """ Returns an aeroo report generated with aeroolib
-        """
-        deferred = context.get('deferred_process')
-        if deferred:
-            deferred.set_status(_('Started'))
+        """ Returns an aeroo report generated with aeroolib"""
         pool = pooler.get_pool(cr.dbname)
         if not context:
             context={}
@@ -555,8 +542,6 @@ class Aeroo_report(report_sxw):
 
         aeroo_docs = context.get('aeroo_docs', False)
         subcontext = context.copy()
-        if deferred:
-            del subcontext['deferred_process']
         oo_parser.localcontext['include_subreport'] = self._subreport(
             cr, uid, aeroo_print, output='odt', aeroo_docs=aeroo_docs,
             context=subcontext
@@ -564,13 +549,11 @@ class Aeroo_report(report_sxw):
         oo_parser.localcontext['include_document'] = self._include_document(
             print_id, aeroo_docs
         )
-        oo_parser.localcontext['progress_update'] = deferred and deferred.progress_update or (lambda:True)
         ####### Add counter functons to localcontext #######
         oo_parser.localcontext.update({'def_inc':self._def_inc(aeroo_print),
                                       'get_inc':self._get_inc(aeroo_print),
                                       'prev':self._prev(aeroo_print),
                                       'next':self._next(aeroo_print)})
-
         user_name = pool.get('res.users').browse(cr, uid, uid, {}).name
         model_id = pool.get('ir.model').search(
             cr, uid, [
@@ -591,8 +574,6 @@ class Aeroo_report(report_sxw):
         basic.Serializer.add_custom_property(module_info['website'], 'URL')
         basic.Serializer.add_creation_date(time.strftime('%Y-%m-%dT%H:%M:%S'))
         try:
-            if deferred:
-                deferred.set_status(_('Generate document'))
             data = basic.generate(**oo_parser.localcontext).render().getvalue()
         except osv.except_osv, e:
             raise
@@ -603,7 +584,7 @@ class Aeroo_report(report_sxw):
         if output!=report_xml.in_format[3:] or aeroo_print.subreports:
             if aeroo_docs and docs_client:
                 try:
-                    data = self._generate_doc(docs_client, data, report_xml, print_id, deferred)
+                    data = self._generate_doc(docs_client, data, report_xml, print_id)
                 except Exception, e:
                     self.logger(_("Aeroo DOCS related error!")+'\n'+str(e), logging.ERROR)
                     if not report_xml.fallback_false:
@@ -669,12 +650,9 @@ class Aeroo_report(report_sxw):
         aeroo_print = self.active_prints[print_id] # Aeroo print object
         if attach or aeroo_docs and report_xml.process_sep:
             objs = self.getObjects_mod(cr, uid, ids, report_xml.report_type, context)
-            deferred = context.get('deferred_process')
             results = []
             for obj in objs:
                 aeroo_print.start_time = time.time()
-                if deferred:
-                    deferred.progress_update()
                 aname = attach and eval(attach, {'object':obj, 'time':time}) or False
                 result = False
                 if report_xml.attachment_use and aname and context.get('attachment_use', True):
@@ -722,8 +700,6 @@ class Aeroo_report(report_sxw):
             if results and len(results)==1:
                 return results[0]
             if results:
-                if deferred:
-                    deferred.set_status(_('Concatenating single documents'))
                 not_pdf = filter(lambda r: r[1]!='pdf', results)
                 if not_pdf:
                     raise osv.except_osv(_('Error!'), _('Unsupported combination of formats!'))
@@ -748,13 +724,10 @@ class Aeroo_report(report_sxw):
         context['aeroo_docs'] = aeroo_docs
         print_id = context.get('print_id', False)
         aeroo_print = self.active_prints[print_id] # Aeroo print object
-        deferred = context.get('deferred_process')
         if attach or aeroo_docs and report_xml.process_sep:
             objs = self.getObjects_mod(cr, uid, ids, report_xml.report_type, context)
             for obj in objs:
                 aeroo_print.start_time = time.time()
-                if deferred:
-                    deferred.progress_update()
                 aname = attach and eval(attach, {'object':obj, 'time':time}) or False
                 result = False
                 if report_xml.attachment_use and aname and context.get('attachment_use', True):
@@ -792,8 +765,6 @@ class Aeroo_report(report_sxw):
         if results and len(results)==1:
             return results[0]
         elif results and docs_client:
-            if deferred:
-                deferred.set_status(_('Concatenating single documents'))
             not_odt = filter(lambda r: r[1]!='odt', results)
             if not_odt:
                 raise osv.except_osv(_('Error!'), _('Unsupported combination of formats!'))
@@ -812,7 +783,6 @@ class Aeroo_report(report_sxw):
         if not context:
             context = {}
         context = dict(context)
-        deferred = context.get('deferred_process')
         #### Get Aeroo print object ###
         aeroo_print = AerooPrint()
         aeroo_print.start_total_time = time.time()
@@ -884,10 +854,8 @@ class Aeroo_report(report_sxw):
                 _('Unknown report type: %s') % report_type
             )
         res = fnct(cr, uid, ids, data, report_xml, context)
-        # # Delete printing object ###
         AerooPrint.print_ids.remove(aeroo_print.id)
         del self.active_prints[aeroo_print.id]
-        # ############################
         self.logger(
             "End total process %s (%s), total elapsed time: %s" %
             (self.name,
@@ -896,8 +864,6 @@ class Aeroo_report(report_sxw):
             ),
             logging.INFO
         )
-        if deferred:
-            deferred.set_status(_('Completed'))
         return res
 
 

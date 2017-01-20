@@ -51,52 +51,6 @@ class report_print_actions(orm.TransientModel):
             'target': 'new',
         }
 
-    def check_if_deferred(self, report_xml, print_ids):
-        extras = report_xml.extras.split(',')
-        if ('deferred_processing' in extras and
-                report_xml.deferred != 'off' and
-                len(print_ids) >= report_xml.deferred_limit):
-            return True
-        return False
-
-    def start_deferred(self, cr, uid, ids, context=None):
-        recs = self.browse(cr, uid, ids[0], context=context)
-        report_xml = self.pool.get('ir.actions.report.xml').browse(
-            cr, uid, context['report_action_id']
-        )
-        deferred_proc_obj = self.pool.get('deferred_processing.task')
-        process_id = deferred_proc_obj.create(
-            cr, uid, {'name':report_xml.name}, context=context
-        )
-        deferred_proc_obj.new_process(cr, uid, process_id, context=context)
-        deferred_proc_obj.start_process_report(
-            cr, uid, process_id, recs.print_ids,
-            context['report_action_id'], context=context
-        )
-
-        mod_obj = self.pool.get('ir.model.data')
-        act_obj = self.pool.get('ir.actions.act_window')
-
-        mod_id = mod_obj.search(
-            cr, uid, [
-                ('name', '=',
-                 'action_deferred_processing_task_deferred_processing'),
-            ],
-            context=context
-        )
-        res_id = mod_obj.read(cr, uid, mod_id, ['res_id'])['res_id']
-        act_win = act_obj.read(
-            cr, uid, res_id, [
-                'name','type','view_id','res_model','view_type',
-                'search_view_id','view_mode','target','context'
-            ],
-            context=context
-        )
-        act_win['res_id'] = process_id
-        act_win['view_type'] = 'form'
-        act_win['view_mode'] = 'form,tree'
-        return act_win
-
     def simple_print(self, cr, uid, ids, context=None):
         report_xml = self._get_report(cr, uid, ids, context=context)
         recs = self.browse(cr, uid, ids[0], context=context)
@@ -136,21 +90,6 @@ class report_print_actions(orm.TransientModel):
                 while(copies):
                     print_ids.extend(obj_print_ids)
                     copies -= 1
-            if self.check_if_deferred(report_xml, print_ids):
-                self.write(
-                        cr, uid, ids, {
-                        'state': 'confirm',
-                        'message': _(
-                            "This process may take too long for interactive \
-                            processing. It is advisable to defer the process as a \
-                            background process. Do you want to start a deferred \
-                            process?"
-                        ),
-                        'print_ids': str(print_ids)
-                    },
-                    context=context
-                )
-                return self._reopen(recs.id, recs._name)
         ##### Simple print #####
         data = {
             'model': report_xml.model,
