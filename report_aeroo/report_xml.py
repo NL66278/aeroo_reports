@@ -683,7 +683,7 @@ class report_xml(orm.Model):
                     vals['report_sxw_content_data'] = False
         recs = self.browse(cr, uid, ids, context=None)[0]
         if vals.get('report_type', recs.report_type) != 'aeroo':
-            res = super(report_xml, recs).write(
+            res = super(report_xml, self).write(
                 cr, uid, ids, vals, context=context
             )
             return res
@@ -811,7 +811,9 @@ class report_xml(orm.Model):
                 _('Report was not registered in system !')
             )
         vals.update(link_vals)
-        res = super(report_xml, recs).write(vals)
+        res = super(report_xml, self).write(
+            cr, uid, ids, vals, context=context
+        )
         return res
 
     def copy(self, cr, uid, ids, default=None, context=None):
