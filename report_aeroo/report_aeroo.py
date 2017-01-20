@@ -1,4 +1,4 @@
-# -*- encoding: utf-8 -*-
+# -*- coding: utf-8 -*-
 ##############################################################################
 #
 # Copyright (C) 2009  Domsense s.r.l.
@@ -184,9 +184,13 @@ class Aeroo_report(report_sxw):
             logger.error("Error while registering report '%s' (%s)", name, table, exc_info=True)
 
     def getObjects_mod(self, cr, uid, ids, rep_type, context):
-        if rep_type=='aeroo':
-            table_obj = registry(cr.dbname).get(self.table)
-            return table_obj and table_obj.browse(cr, uid, ids, context=context) or []
+        if rep_type == 'aeroo':
+            table_obj = pooler.get_pool(cr.dbname).get(self.table)
+            return (
+                table_obj and
+                table_obj.browse(cr, uid, ids, context=context) or
+                []
+            )
         return super(Aeroo_report, self).getObjects(cr, uid, ids, context)
 
     # ### Counter functions #####
@@ -209,7 +213,6 @@ class Aeroo_report(report_sxw):
         def next(name):
             return aeroo_print.counters[name].next()
         return next
-    # ###########################
 
     def _epl_asimage(self, data, aeroo_print):
         from PIL import Image

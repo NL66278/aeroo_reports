@@ -46,7 +46,7 @@ from openerp.tools.translate import _
 from openerp.osv.orm import except_orm
 from openerp.osv.orm import transfer_modifiers_to_node
 from openerp.report.report_sxw import rml_parse
-from openerp.report import interface
+from openerp import netsvc
 import openerp.tools as tools
 from openerp.tools.config import config
 
@@ -57,9 +57,9 @@ logger = logging.getLogger('report_aeroo')
 
 
 class report_stylesheets(orm.Model):
-    '''
+    """
     Aeroo Report Stylesheets
-    '''
+    """
     _name = 'report.stylesheets'
     _description = 'Report Stylesheets'
 
@@ -85,9 +85,9 @@ class res_company(orm.Model):
 
 
 class report_mimetypes(orm.Model):
-    '''
+    """
     Aeroo Report Mime-Type
-    '''
+    """
     _name = 'report.mimetypes'
     _description = 'Report Mime-Types'
 
@@ -108,16 +108,14 @@ class report_xml(orm.Model):
     _inherit = 'ir.actions.report.xml'
 
     def aeroo_docs_enabled(self, cr, uid, context=None):
-        '''
-        Check if Aeroo DOCS connection is enabled
-        '''
+        """Check if Aeroo DOCS connection is enabled."""
         icp = self.pool['ir.config_parameter']
         enabled = icp.get_param(
             cr, SUPERUSER_ID, 'aeroo.docs_enabled', context=context
         )
         return enabled == 'True' and True or False
 
-    def load_from_file(self, cr, uid, path, key, context=None):
+    def load_from_file(self, cr, path, key):
         class_inst = None
         expected_class = 'Parser'
         try:
@@ -166,7 +164,7 @@ class report_xml(orm.Model):
             )
             return None
 
-    def load_from_source(self, cr, uid, source, context=None):
+    def load_from_source(self, source):
         # RPO Strange and dubious method:
         source = "from openerp.report import report_sxw\n" + source
         context = {'Parser': None}
@@ -272,20 +270,19 @@ class report_xml(orm.Model):
 
     def delete_report_service(self, name):
         name = 'report.%s' % name
-        if name in interface.report_int._reports:
-            del interface.report_int._reports[name]
+        if netsvc.Service.exists( name ):
+            netsvc.Service.remove( name )
 
-    def register_report(self, cr, uid, name, model, tmpl_path, parser):
+    def register_report(self, cr, name, model, tmpl_path, parser):
         name = 'report.%s' % name
-        if name in interface.report_int._reports:
-            del interface.report_int._reports[name]
-        res = Aeroo_report(cr, name, model, tmpl_path, parser=parser)
-        return res
+        if netsvc.Service.exists( name ):
+            netsvc.Service.remove( name )
+        Aeroo_report(cr, name, model, tmpl_path, parser=parser)
 
-    def unregister_report(self, cr, uid, name, context=None):
+    def unregister_report(self, cr, name):
         service_name = 'report.%s' % name
-        if service_name in interface.report_int._reports:
-            del interface.report_int._reports[service_name]
+        if netsvc.Service.exists( service_name ):
+            netsvc.Service.remove( service_name )
         cr.execute(
             "SELECT * FROM ir_act_report_xml"
             " WHERE report_name = %s and active = true"
@@ -294,28 +291,32 @@ class report_xml(orm.Model):
         report = cr.dictfetchall()
         if report:
             report = report[-1]
-            parser = rml_parse
+            parser=rml_parse
             if report['parser_state'] == 'loc' and report['parser_loc']:
                 parser = self.load_from_file(
-                    report['parser_loc'], report['id']
+                    cr, report['parser_loc'], report['id']
                 ) or parser
             elif report['parser_state'] == 'def' and report['parser_def']:
                 parser = self.load_from_source(
                     report['parser_def']
                 ) or parser
             self.register_report(
+                cr,
                 report['report_name'], report['model'], report['report_rml'],
                 parser
             )
 
     def _lookup_report(self, cr, name):
-        if 'report.' + name in interface.report_int._reports:
-            new_report = interface.report_int._reports['report.' + name]
+        service_name = 'report.%s' % name
+        if netsvc.Service.exists( service_name ):
+            new_report = netsvc.Service(service_name)
         else:
-            cr.execute("SELECT id, active, report_type, parser_state, \
-                        parser_loc, parser_def, model, report_rml \
-                        FROM ir_act_report_xml \
-                        WHERE report_name=%s", (name,))
+            cr.execute(
+                "SELECT id, active, report_type, parser_state, parser_loc,"
+                " parser_def, model, report_rml"
+                " FROM ir_act_report_xml"
+                " WHERE report_name=%s", (service_name,)
+            )
             record = cr.dictfetchone()
             if record['report_type'] == 'aeroo':
                 if record['active'] == True:
@@ -323,21 +324,23 @@ class report_xml(orm.Model):
                     if (record['parser_state'] == 'loc' and
                             record['parser_loc']):
                         parser = self.load_from_file(
-                            cr, 1, record['parser_loc'], record['id']
+                            cr, record['parser_loc'], record['id']
                         ) or parser
                     elif (record['parser_state'] == 'def' and
                             record['parser_def']):
                         parser = self.load_from_source(
-                            cr, 1, record['parser_def']
+                            record['parser_def']
                         ) or parser
                     new_report = self.register_report(
-                        cr, 1, name, record['model'],
+                        cr, service_name, record['model'],
                         record['report_rml'], parser
                     )
                 else:
                     new_report = False
             else:
-                new_report = super(report_xml, self)._lookup_report(cr, name)
+                new_report = super(report_xml, self)._lookup_report(
+                    cr, name
+                )
         return new_report
 
     def _report_content(self, cr, uid, ids, field_name, arg, context=None):
@@ -422,14 +425,14 @@ class report_xml(orm.Model):
     def _get_extras(self, cr, uid, ids, field_name, arg, context=None):
         """Fill computed field extras."""
         result = {}
-        extras = []
         if not ids:
             return result
         for this_obj in self.browse(cr, uid, ids, context=None):
             if this_obj.aeroo_docs_enabled():
-                extras.append('aeroo_ooo')
-            extras = ','.join(result)
-            result[this_obj.id] = extras
+                result[this_obj.id] = 'aeroo_ooo'
+            else:
+                result[this_obj.id] = False
+        return result
 
     _columns = {
         'charset': fields.selection(
@@ -539,25 +542,26 @@ class report_xml(orm.Model):
 
     def search(
             self, cr, uid, args, offset=0, limit=None, order=None,
-            count=False, context=None):
-        orig_res = super(report_xml, self).search(
+            context=None, count=False):
+        orig_res_ids = super(report_xml, self).search(
             cr, uid, args, offset=offset, limit=limit, order=order,
-            count=count, context=context
+            context=context, count=count
         )
         by_name = len(args) == 1 and [x for x in args if x[0] == 'report_name']
-        if by_name and orig_res and 'print_id' not in context:
+        if by_name and orig_res_ids and 'print_id' not in context:
             replace_rep = super(report_xml, self).search(
-                cr, uid, [('replace_report_id', '=', orig_res.ids[0])],
+                cr, uid, [('replace_report_id', '=', orig_res_ids[0])],
                 offset=offset, limit=limit, order=order,
-                count=count, context=context
+                context=context, count=count
             )
             if len(replace_rep):
                 return replace_rep
-        return orig_res
+        return orig_res_ids
 
     def fields_view_get(
             self, cr, uid, view_id=None, view_type='form', toolbar=False,
             submenu=False, context=None):
+        context = context or {}
         if context.get('default_report_type') == 'aeroo':
             mda_mod = self.pool['ir.model.data']
             if view_type == 'form':
@@ -619,7 +623,7 @@ class report_xml(orm.Model):
                         irval_obj.unlink(
                             cr, uid, ir_value_ids, context=context
                         )
-                    recs.unregister_report(r['report_name'])
+                    recs.unregister_report(cr, uid, r['report_name'])
         res = super(report_xml, self).unlink(
             cr, uid, [recs.id], context=context
         )
@@ -631,7 +635,7 @@ class report_xml(orm.Model):
             vals['auto'] = False
             if vals['parser_state'] == 'loc' and vals['parser_loc']:
                 parser = self.load_from_file(
-                    vals['parser_loc'],
+                    cr, vals['parser_loc'],
                     vals['name'].lower().replace(' ', '_')
                 ) or parser
             elif vals['parser_state'] == 'def' and vals['parser_def']:
@@ -659,6 +663,7 @@ class report_xml(orm.Model):
             try:
                 if vals.get('active', False):
                     self.register_report(
+                        cr,
                         vals['report_name'], vals['model'],
                         vals.get('report_rml', False), parser
                     )
@@ -707,45 +712,38 @@ class report_xml(orm.Model):
         p_state = vals.get('parser_state', False)
         if p_state == 'loc':
             parser = self.load_from_file(
-                cr, uid,
-                vals.get('parser_loc', False) or recs.parser_loc,
-                recs.id
+                cr, vals.get('parser_loc', False) or recs.parser_loc, recs.id
             ) or parser
         elif p_state == 'def':
             parser = self.load_from_source(
-                cr, uid,
                 (vals.get('parser_loc', False) or recs.parser_def or '')
             ) or parser
         elif p_state == 'default':
             parser = rml_parse
         elif recs.parser_state == 'loc':
             parser = self.load_from_file(
-                cr, uid, recs.parser_loc, recs.id
+                cr, recs.parser_loc, recs.id
             ) or parser
         elif recs.parser_state == 'def':
             parser = self.load_from_source(
-                cr, uid, recs.parser_def
+                recs.parser_def
             ) or parser
         elif recs.parser_state == 'default':
             parser = rml_parse
         if vals.get('parser_loc', False):
             parser = self.load_from_file(
-                cr, uid, vals['parser_loc'], recs.id
+                cr, vals['parser_loc'], recs.id
             ) or parser
         elif vals.get('parser_def', False):
             parser = self.load_from_source(
-                cr, uid, vals['parser_def']
+                vals['parser_def']
             ) or parser
         if (vals.get('report_name', False) and
                 vals['report_name'] != recs.report_name):
-            self.delete_report_service(
-                cr, uid, recs.report_name, context=context
-            )
+            self.delete_report_service(recs.report_name)
             report_name = vals['report_name']
         else:
-            self.delete_report_service(
-                cr, uid, recs.report_name, context=context
-            )
+            self.delete_report_service(recs.report_name)
             report_name = recs.report_name
         # Link / unlink inherited report
         link_vals = {}
@@ -770,7 +768,7 @@ class report_xml(orm.Model):
                         context=context
                     )[0])
                 self.register_report(
-                    cr, uid, report_name, vals.get('model', recs.model),
+                    cr, report_name, vals.get('model', recs.model),
                     vals.get('report_rml', recs.report_rml), parser
                 )
             else:
@@ -783,7 +781,7 @@ class report_xml(orm.Model):
         try:
             if vals.get('active', recs.active):
                 self.register_report(
-                    cr, uid, report_name, vals.get('model', recs.model),
+                    cr, report_name, vals.get('model', recs.model),
                     vals.get('report_rml', recs.report_rml), parser
                 )
                 if (not recs.active and
@@ -983,10 +981,10 @@ class report_xml(orm.Model):
         return True
 
     def _get_default_outformat(self, cr, uid, context=None):
-        res = self.pool['report.mimetypes'].search(
+        res_ids = self.pool['report.mimetypes'].search(
             cr, uid, [('code', '=', 'oo-odt')], context=context
         )
-        return res and res[0].id or False
+        return res_ids and res_ids[0] or False
 
     _defaults = {
         'tml_source': 'database',

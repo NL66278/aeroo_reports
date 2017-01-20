@@ -54,22 +54,21 @@ class report_print_by_action(orm.TransientModel):
             )
         print_ids = eval("[%s]" % valid_input, {})
         rep_obj = self.pool['ir.actions.report.xml']
-        report = rep_obj.browse(recs.env.context['active_ids'])[0]
+        report = rep_obj.browse(cr, uid, context['active_ids'])[0]
         data = {
-                'model': report.model,
-                'ids': print_ids,
-                'id': print_ids[0],
-                'report_type': 'aeroo'
-                }
+            'model': report.model,
+            'ids': print_ids,
+            'id': print_ids[0],
+            'report_type': 'aeroo'
+        }
         res = {
-                'type': 'ir.actions.report.xml',
-                'report_name': report.report_name,
-                'datas': data,
-                'context': recs.env.context
-                }
+            'type': 'ir.actions.report.xml',
+            'report_name': report.report_name,
+            'datas': data,
+            'context': context
+        }
         return res
 
-    # Fields
     _columns = {
         'name': fields.text('Object Model', readonly=True),
         'object_ids': fields.char(
@@ -77,7 +76,6 @@ class report_print_by_action(orm.TransientModel):
             help="Single ID or number of comma separated record IDs"
         ),
     }
-    # ends Fields
 
     def fields_view_get(
             self, cr, uid, view_id=None, view_type='form', toolbar=False,
@@ -86,7 +84,7 @@ class report_print_by_action(orm.TransientModel):
         if context.get('active_ids'):
             report = self.pool['ir.actions.report.xml'].browse(
                 cr, uid, context['active_ids'], context=context
-            )
+            )[0]
             if report.report_name == 'aeroo.printscreen.list':
                 raise except_orm(
                     _("Error"),
@@ -100,6 +98,7 @@ class report_print_by_action(orm.TransientModel):
         return res
 
     def _get_model(self, cr, uid, context=None):
+        context = context or {}
         rep_obj = self.pool['ir.actions.report.xml']
         report = rep_obj.browse(
             cr, uid, context['active_ids'], context=context
@@ -107,14 +106,14 @@ class report_print_by_action(orm.TransientModel):
         return report[0].model
 
     def _get_last_ids(self, cr, uid, context=None):
-        last_call = self.search(
+        last_call_ids = self.search(
             cr, uid, [
-                ('name', '=', self._get_model()),
-                ('create_uid', '=', self.env.uid),
+                ('name', '=', self._get_model(cr, uid, context=context)),
+                ('create_uid', '=', uid),
             ],
             context=context
         )
-        return last_call and last_call[-1].object_ids or False
+        return last_call_ids and last_call_ids[-1] or False
 
     _defaults = {
        'name': _get_model,
