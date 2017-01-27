@@ -236,4 +236,6 @@ class docs_config_installer(orm.TransientModel):
             'context': context,                                                
             'type': 'ir.actions.act_window',                                   
             'res_id': ids[0],                                                  
+            'target': 'new',
+            'nodestroy': True,
         }

@@ -15,9 +15,19 @@
 -->
                 <footer position="replace">
                     <footer>
-                        <button name="action_next" type="object" string="Continue" invisible="context.get('menu',False)" class="oe_highlight"/>
+                        <button
+                            name="action_next"
+                            type="object"
+                            string="Continue"
+                            invisible="context.get('menu',False)"
+                            class="oe_highlight"
+                            />
                         or
-                        <button special="cancel" string="Close" class="oe_link"/>
+                        <button
+                            special="cancel"
+                            string="Close"
+                            class="oe_link"
+                            />
                     </footer>
                 </footer>
                 <separator string="title" position="replace">
@@ -91,8 +101,15 @@
                               </group>
                               <field name="auth_type" attrs="{'readonly': [('enabled','=',False)]}"/>
                               <group colspan="4" attrs="{'invisible': [('auth_type','=',False)]}">
-                                <field name="username" attrs="{'required': [('auth_type','=','simple')], 'readonly': [('enabled','=',False)]}"/>
-                                <field name="password" password="True" attrs="{'required': [('auth_type','=','simple')], 'readonly': [('enabled','=',False)]}"/>
+                                  <field
+                                      name="username"
+                                      attrs="{'required': [('auth_type','=','simple')], 'readonly': [('enabled','=',False)]}"
+                                      />
+                                <field
+                                    name="password"
+                                    password="True"
+                                    attrs="{'required': [('auth_type','=','simple')], 'readonly': [('enabled','=',False)]}"
+                                    />
                               </group>
                           </group>
                           <separator colspan="4"/>
@@ -140,7 +157,11 @@
       <field name="target">new</field>
     </record>
 
-	<menuitem id="menu_docs_config_wizard" action="action_docs_config_wizard" parent="menu_ir_action_aeroo_reports_xml"/>
+    <menuitem
+        id="menu_docs_config_wizard"
+        action="action_docs_config_wizard"
+        parent="menu_ir_action_aeroo_reports_xml"
+        />
 
   </data>
 </openerp>

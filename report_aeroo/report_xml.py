@@ -361,7 +361,7 @@ class report_xml(orm.Model):
         if not ids:
             return result
         for this_obj in self.browse(cr, uid, ids, context=None):
-            if this_obj.aeroo_docs_enabled():
+            if self.aeroo_docs_enabled(cr, uid, context=context):
                 result[this_obj.id] = 'aeroo_ooo'
             else:
                 result[this_obj.id] = False
@@ -688,7 +688,7 @@ class report_xml(orm.Model):
             if vals.get('active', recs.active):
                 report_vals = {
                     'report_name': vals.get('name', recs.name),
-                    'report_model': vals.get('model', recs.model),
+                    'model': vals.get('model', recs.model),
                     'report_rml': vals.get('report_rml', recs.report_rml),
                     'parser_state':
                         vals.get('parser_state', recs.parser_state),
