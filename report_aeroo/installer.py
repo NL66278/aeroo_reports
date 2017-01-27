@@ -222,16 +222,18 @@ class docs_config_installer(orm.TransientModel):
                 'Success! Connection to the DOCS service was successfully '
                 'established and PDF convertion is working.'
             )
-        this_obj.msg = msg
-        this_obj.error_details = error_details
-        this_obj.state = state
+        vals = {
+            'msg':  msg,
+            'error_details': error_details,
+            'state': state,
+        }
+        self,write(cr, uid, ids, vals, context=context)
         mod_obj = self.pool['ir.model.data']
         act_obj = self.pool['ir.actions.act_window']
         result = mod_obj.get_object_reference(
-            'report_aeroo',
+            cr, uid, 'report_aeroo',
             'action_docs_config_wizard'
         )
         act_id = result and result[1] or False
-        result = act_obj.search([('id', '=', act_id)]).read()[0]
         result['res_id'] = this_obj.id
         return result
