@@ -228,12 +228,3 @@ class docs_config_installer(orm.TransientModel):
             'state': state,
         }
         self.write(cr, uid, ids, vals, context=context)
-        mod_obj = self.pool['ir.model.data']
-        act_obj = self.pool['ir.actions.act_window']
-        result = mod_obj.get_object_reference(
-            cr, uid, 'report_aeroo',
-            'action_docs_config_wizard'
-        )
-        act_id = result and result[1] or False
-        result['res_id'] = this_obj.id
-        return result
