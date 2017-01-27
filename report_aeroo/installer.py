@@ -228,3 +228,6 @@ class docs_config_installer(orm.TransientModel):
             'state': state,
         }
         self.write(cr, uid, ids, vals, context=context)
+        result = {}
+        result['res_id'] = this_obj.id
+        return result;
