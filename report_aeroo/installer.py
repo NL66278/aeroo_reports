@@ -225,8 +225,8 @@ class docs_config_installer(orm.TransientModel):
         this_obj.msg = msg
         this_obj.error_details = error_details
         this_obj.state = state
-        mod_obj = this_obj.env['ir.model.data']
-        act_obj = this_obj.env['ir.actions.act_window']
+        mod_obj = self.pool['ir.model.data']
+        act_obj = self.pool['ir.actions.act_window']
         result = mod_obj.get_object_reference(
             'report_aeroo',
             'action_docs_config_wizard'
