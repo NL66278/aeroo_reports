@@ -163,45 +163,44 @@ class docs_config_installer(orm.TransientModel):
         return defaults
 
     def check(self, cr, uid, ids, context=None):
-        if not ids:
-            return
+        """Handle Test and APply button on configurator."""
+        wiz = self.browse(cr, uid, ids[0], context=context)
         icp = self.pool['ir.config_parameter']
-        this_obj = self.browse(cr, uid, ids, context=context)[0]
         icp.set_param(
-            cr, uid, 'aeroo.docs_enabled', str(this_obj.enabled),
+            cr, uid, 'aeroo.docs_enabled', str(wiz.enabled),
             context=context
         )
         icp.set_param(
-            cr, uid, 'aeroo.docs_host', this_obj.host,
+            cr, uid, 'aeroo.docs_host', wiz.host,
             context=context
         )
         icp.set_param(
-            cr, uid, 'aeroo.docs_port', this_obj.port,
+            cr, uid, 'aeroo.docs_port', wiz.port,
             context=context
         )
         icp.set_param(
-            cr, uid, 'aeroo.docs_auth_type', this_obj.auth_type or 'simple',
+            cr, uid, 'aeroo.docs_auth_type', wiz.auth_type or 'simple',
             context=context
         )
         icp.set_param(
-            cr, uid, 'aeroo.docs_username', this_obj.username,
+            cr, uid, 'aeroo.docs_username', wiz.username,
             context=context
         )
         icp.set_param(
-            cr, uid, 'aeroo.docs_password', this_obj.password,
+            cr, uid, 'aeroo.docs_password', wiz.password,
             context=context
         )
         error_details = ''
         state = 'done'
-        if this_obj.enabled:
+        if wiz.enabled:
             try:
                 fp = tools.file_open('report_aeroo/test_temp.odt', mode='rb')
                 file_data = fp.read()
                 with aeroo_lock:
                     docs_client = DOCSConnection(
-                        this_obj.host, this_obj.port,
-                        username=this_obj.username,
-                        password=this_obj.password
+                        wiz.host, wiz.port,
+                        username=wiz.username,
+                        password=wiz.password
                     )
                     token = docs_client.upload(file_data)
                     data = docs_client.convert(
@@ -215,7 +214,7 @@ class docs_config_installer(orm.TransientModel):
                 'Failure! Connection to DOCS service was not established '
                 'or convertion to PDF unsuccessful!'
             )
-        elif state == 'done' and not this_obj.enabled:
+        elif state == 'done' and not wiz.enabled:
             msg = _('Connection to Aeroo DOCS disabled!')
         else:
             msg = _(
@@ -227,7 +226,14 @@ class docs_config_installer(orm.TransientModel):
             'error_details': error_details,
             'state': state,
         }
-        self.write(cr, uid, ids, vals, context=context)
-        result = {}
-        result['res_id'] = this_obj.id
-        return result;
+        wiz.write(vals)
+        return {                                                               
+            'name': self._description,                                         
+            'view_type': 'form',                                               
+            'view_mode': 'form',                                               
+            'res_model': self._name,                                           
+            'domain': [],                                                      
+            'context': context,                                                
+            'type': 'ir.actions.act_window',                                   
+            'res_id': ids[0],                                                  
+        }
