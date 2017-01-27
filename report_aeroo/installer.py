@@ -30,7 +30,7 @@ class report_aeroo_installer(orm.TransientModel):
             im = urllib2.urlopen(_url.encode("UTF-8"))
             if im.headers.maintype != 'image':
                 raise TypeError(im.headers.maintype)
-        except Exception, e:
+        except Exception:
             path = os.path.join(
                 'report_aeroo',
                 'config_pixmaps',
@@ -64,7 +64,7 @@ class report_aeroo_installer(orm.TransientModel):
     }
     _defaults = {
         'config_logo': _get_image,
-        'link':'http://www.alistek.com',
+        'link': 'http://www.alistek.com',
     }
 
 
@@ -81,7 +81,7 @@ class docs_config_installer(orm.TransientModel):
             im = urllib2.urlopen(_url.encode("UTF-8"))
             if im.headers.maintype != 'image':
                 raise TypeError(im.headers.maintype)
-        except Exception, e:
+        except Exception:
             path = os.path.join(
                 'report_aeroo',
                 'config_pixmaps',
@@ -116,8 +116,7 @@ class docs_config_installer(orm.TransientModel):
         'state': fields.selection(
             [('init', 'Init'),
              ('error', 'Error'),
-             ('done', 'Done'),
-            ],
+             ('done', 'Done')],
             'State', select=True, readonly=True
         ),
         'msg': fields.text('Message', readonly=True),
@@ -127,6 +126,16 @@ class docs_config_installer(orm.TransientModel):
             type='binary',
             string='Image',
         ),
+    }
+    _defaults = {
+        'config_logo': _get_image,
+        'host': 'localhost',
+        'port': 8989,
+        'auth_type': False,
+        'username': 'anonymous',
+        'password': 'anonymous',
+        'state': 'init',
+        'enabled': False,
     }
 
     def default_get(self, cr, uid, allfields, context=None):
@@ -158,12 +167,30 @@ class docs_config_installer(orm.TransientModel):
             return
         icp = self.pool['ir.config_parameter']
         this_obj = self.browse(cr, uid, ids, context=context)[0]
-        icp.set_param('aeroo.docs_enabled', str(this_obj.enabled))
-        icp.set_param('aeroo.docs_host', this_obj.host)
-        icp.set_param('aeroo.docs_port', this_obj.port)
-        icp.set_param('aeroo.docs_auth_type', this_obj.auth_type or 'simple')
-        icp.set_param('aeroo.docs_username', this_obj.username)
-        icp.set_param('aeroo.docs_password', this_obj.password)
+        icp.set_param(
+            cr, uid, 'aeroo.docs_enabled', str(this_obj.enabled),
+            context=context
+        )
+        icp.set_param(
+            cr, uid, 'aeroo.docs_host', this_obj.host,
+            context=context
+        )
+        icp.set_param(
+            cr, uid, 'aeroo.docs_port', this_obj.port,
+            context=context
+        )
+        icp.set_param(
+            cr, uid, 'aeroo.docs_auth_type', this_obj.auth_type or 'simple',
+            context=context
+        )
+        icp.set_param(
+            cr, uid, 'aeroo.docs_username', this_obj.username,
+            context=context
+        )
+        icp.set_param(
+            cr, uid, 'aeroo.docs_password', this_obj.password,
+            context=context
+        )
         error_details = ''
         state = 'done'
         if this_obj.enabled:
@@ -185,14 +212,14 @@ class docs_config_installer(orm.TransientModel):
                 state = 'error'
         if state == 'error':
             msg = _(
-                'Failure! Connection to DOCS service was not established ' +
+                'Failure! Connection to DOCS service was not established '
                 'or convertion to PDF unsuccessful!'
             )
         elif state == 'done' and not this_obj.enabled:
             msg = _('Connection to Aeroo DOCS disabled!')
         else:
             msg = _(
-                'Success! Connection to the DOCS service was successfully '+
+                'Success! Connection to the DOCS service was successfully '
                 'established and PDF convertion is working.'
             )
         this_obj.msg = msg
@@ -205,17 +232,6 @@ class docs_config_installer(orm.TransientModel):
             'action_docs_config_wizard'
         )
         act_id = result and result[1] or False
-        result = act_obj.search([('id','=',act_id)]).read()[0]
+        result = act_obj.search([('id', '=', act_id)]).read()[0]
         result['res_id'] = this_obj.id
         return result
-
-    _defaults = {
-        'config_logo': _get_image,
-        'host': 'localhost',
-        'port': 8989,
-        'auth_type': False,
-        'username': 'anonymous',
-        'password': 'anonymous',
-        'state': 'init',
-        'enabled': False,
-    }
