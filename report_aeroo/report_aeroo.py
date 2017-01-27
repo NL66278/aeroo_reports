@@ -1,36 +1,8 @@
 # -*- coding: utf-8 -*-
-##############################################################################
-#
-# Copyright (C) 2009  Domsense s.r.l.
-#
-# Copyright (c) 2009-2014 Alistek ( http://www.alistek.com ) All Rights Reserved.
-#                    General contacts <info@alistek.com>
-#
-# WARNING: This program as such is intended to be used by professional
-# programmers who take the whole responsability of assessing all potential
-# consequences resulting from its eventual inadequacies and bugs
-# End users who are looking for a ready-to-use solution with commercial
-# garantees and support are strongly adviced to contract a Free Software
-# Service Company
-#
-# This program is Free Software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 3
-# of the License, or (at your option) any later version.
-#
-# This module is GPLv3 or newer and incompatible
-# with OpenERP SA "AGPL + Private Use License"!
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-#
-##############################################################################
+# © 2009  Domsense s.r.l.
+# © 2009-2014 Alistek <http://www.alistek.com>.
+# © 2017 Therp BV <http://therp.nl>.
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 import os
 import sys
 import traceback
@@ -155,8 +127,12 @@ class Aeroo_report(report_sxw):
     def logger(self, message, level=logging.DEBUG):
         logger.log(level, message, exc_info=1)
 
-    def __init__(self, cr, name, table, rml=False, parser=False, header=True, store=False):
-        super(Aeroo_report, self).__init__(name, table, rml, parser, header, store)
+    def __init__(
+            self, cr, name, table, rml=False, parser=False,
+            header=True, store=False):
+        super(Aeroo_report, self).__init__(
+            name, table, rml, parser, header, store
+        )
         self.logger("registering %s (%s)" % (name, table), logging.INFO)
         self.active_prints = {}
 
@@ -172,7 +148,10 @@ class Aeroo_report(report_sxw):
             if report_xml and report_xml.preload_mode == 'preload':
                 file_data = report_xml.report_sxw_content
                 if not file_data:
-                    self.logger("template is not defined in %s (%s) !" % (name, table), logging.WARNING)
+                    self.logger(
+                        "template is not defined in %s (%s) !" %
+                        (name, table), logging.WARNING
+                    )
                     template_io = None
                 else:
                     template_io = StringIO()
@@ -181,7 +160,10 @@ class Aeroo_report(report_sxw):
                 if template_io:
                     self.serializer = OOSerializer(template_io, oo_styles=style_io)
         except Exception, e:
-            logger.error("Error while registering report '%s' (%s)", name, table, exc_info=True)
+            logger.error(
+                "Error while registering report '%s' (%s)",
+                name, table, exc_info=True
+            )
 
     def getObjects_mod(self, cr, uid, ids, rep_type, context):
         if rep_type == 'aeroo':

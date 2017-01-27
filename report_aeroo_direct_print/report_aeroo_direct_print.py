@@ -1,39 +1,12 @@
 # -*- coding: utf-8 -*-
-##############################################################################
-#
-# Copyright (c) 2008-2013 Alistek Ltd (http://www.alistek.com)
-#   All Rights Reserved.
-#   General contacts <info@alistek.com>
-#
-# WARNING: This program as such is intended to be used by professional
-# programmers who take the whole responsability of assessing all potential
-# consequences resulting from its eventual inadequacies and bugs
-# End users who are looking for a ready-to-use solution with commercial
-# garantees and support are strongly adviced to contract a Free Software
-# Service Company
-#
-# This program is Free Software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 3
-# of the License, or (at your option) any later version.
-#
-# This module is GPLv3 or newer and incompatible
-# with OpenERP SA "AGPL + Private Use License"!
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-#
-##############################################################################
+# © 2008-2013 Alistek <http://www.alistek.com>.
+# © 2017 Therp BV <http://therp.nl>.
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 import md5
 import cups
 from tempfile import NamedTemporaryFile
 
+from openerp import netsvc
 from openerp.osv import orm, fields
 from openerp.tools.translate import _
 
@@ -58,32 +31,34 @@ class report_print_actions(orm.TransientModel):
             'id': context['active_ids'][0],
             'report_type': 'aeroo',
         }
-        report = self.pool['ir.actions.report.xml']._lookup_report(
-            cr, report_xml.report_name
-        )
+        service_name = 'report.%s' % report_xml.report_name
+        if not netsvc.Service.exists(service_name):
+            raise orm.except_orm(
+                _('Warning!'),
+                _("Report '%s' not found in services.") % service_name
+            )
+        report = netsvc.Service(service_name)
         res = report.create(
             cr, uid, context['active_ids'], data, context=context
         )
-        if res[1] in SUPPORTED_PRINT_FORMAT:
-            with NamedTemporaryFile(
-                suffix='', prefix='aeroo-print-', delete=False
-            ) as temp_file:
-                temp_file.write(res[0])
-            conn = cups.Connection()
-            return conn.printFile(
-                printer,
-                temp_file.name,
-                'Aeroo Print',
-                {'copies': report_xml.copies > 0 and
-                 str(report_xml.copies) or '1'}
-            )
-        else:
+        if not res[1] in SUPPORTED_PRINT_FORMAT:
             raise orm.except_orm(
                 _('Warning!'),
                 _("Unsupported report format '%s'."
                   " Is not possible direct print to printer.") % res[1]
             )
-        return False
+        with NamedTemporaryFile(
+            suffix='', prefix='aeroo-print-', delete=False
+        ) as temp_file:
+            temp_file.write(res[0])
+        conn = cups.Connection()
+        return conn.printFile(
+            printer,
+            temp_file.name,
+            'Aeroo Print',
+            {'copies': report_xml.copies > 0 and
+                str(report_xml.copies) or '1'}
+        )
 
     def to_print(self, cr, uid, ids, context=None):
         recs = self.browse(cr, uid, ids, context=context)
@@ -98,7 +73,13 @@ class report_print_actions(orm.TransientModel):
                 'id': obj_print_ids[0],
                 'report_type': 'aeroo',
             }
-            report = rep_mod._lookup_report(report_xml.report_name)
+            service_name = 'report.%s' % report_xml.report_name
+            if not netsvc.Service.exists(service_name):
+                raise orm.except_orm(
+                    _('Warning!'),
+                    _("Report '%s' not found in services.") % service_name
+                )
+            report = netsvc.Service(service_name)
             res = report.create(
                 cr, uid, obj_print_ids, data, context=context
             )

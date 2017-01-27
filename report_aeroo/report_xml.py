@@ -1,35 +1,7 @@
 # -*- coding: utf-8 -*-
-##############################################################################
-#
-# Copyright (c) 2009-2014 Alistek ( http://www.alistek.com )
-#   All Rights Reserved.
-#   General contacts <info@alistek.com>
-#
-# WARNING: This program as such is intended to be used by professional
-# programmers who take the whole responsability of assessing all potential
-# consequences resulting from its eventual inadequacies and bugs
-# End users who are looking for a ready-to-use solution with commercial
-# garantees and support are strongly adviced to contract a Free Software
-# Service Company
-#
-# This program is Free Software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 3
-# of the License, or (at your option) any later version.
-#
-# This module is GPLv3 or newer and incompatible
-# with OpenERP SA "AGPL + Private Use License"!
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-#
-##############################################################################
+# © 2009-2014 Alistek <http://www.alistek.com>.
+# © 2017 Therp BV <http://therp.nl>.
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 import base64
 import binascii
 import encodings
@@ -38,13 +10,11 @@ import os
 import imp
 import zipimport
 import logging
-from lxml import etree
 
 from openerp.osv import orm, fields
 from openerp import SUPERUSER_ID
 from openerp.tools.translate import _
 from openerp.osv.orm import except_orm
-from openerp.osv.orm import transfer_modifiers_to_node
 from openerp.report.report_sxw import rml_parse
 from openerp import netsvc
 import openerp.tools as tools
@@ -268,80 +238,43 @@ class report_xml(orm.Model):
                 recs.wizard_id.unlink()
         return res
 
-    def delete_report_service(self, name):
-        name = 'report.%s' % name
-        if netsvc.Service.exists( name ):
-            netsvc.Service.remove( name )
-
-    def register_report(self, cr, name, model, tmpl_path, parser):
-        name = 'report.%s' % name
-        if netsvc.Service.exists( name ):
-            netsvc.Service.remove( name )
-        Aeroo_report(cr, name, model, tmpl_path, parser=parser)
-
-    def unregister_report(self, cr, name):
+    def unregister_report(self, name):
         service_name = 'report.%s' % name
-        if netsvc.Service.exists( service_name ):
-            netsvc.Service.remove( service_name )
+        if netsvc.Service.exists(service_name):
+            netsvc.Service.remove(service_name)
+
+    def register_report(self, cr, record):
+        parser = rml_parse
+        if record['parser_state'] == 'loc' and record['parser_loc']:
+            parser = self.load_from_file(
+                record['parser_loc'], cr, record['id']
+            ) or parser
+        elif record['parser_state'] == 'def' and record['parser_def']:
+            parser = self.load_from_source(
+                record['parser_def']
+            ) or parser
+        service_name = 'report.%s' % record['report_name']
+        if netsvc.Service.exists(service_name):
+            netsvc.Service.remove(service_name)
+        Aeroo_report(
+            cr, service_name,
+            record['model'], record['report_rml'],
+            parser=parser
+        )
+
+    def register_all(self, cr):
+        """Will be called on server startup to register all reports to be
+        called from the report service.
+        """
+        super(report_xml, self).register_all(cr)
         cr.execute(
             "SELECT * FROM ir_act_report_xml"
-            " WHERE report_name = %s and active = true"
-            " ORDER BY id", (name,)
+            " WHERE report_type = 'aeroo' and active = true"
+            " ORDER BY id"
         )
-        report = cr.dictfetchall()
-        if report:
-            report = report[-1]
-            parser=rml_parse
-            if report['parser_state'] == 'loc' and report['parser_loc']:
-                parser = self.load_from_file(
-                    cr, report['parser_loc'], report['id']
-                ) or parser
-            elif report['parser_state'] == 'def' and report['parser_def']:
-                parser = self.load_from_source(
-                    report['parser_def']
-                ) or parser
-            self.register_report(
-                cr,
-                report['report_name'], report['model'], report['report_rml'],
-                parser
-            )
-
-    def _lookup_report(self, cr, name):
-        service_name = 'report.%s' % name
-        if netsvc.Service.exists( service_name ):
-            new_report = netsvc.Service(service_name)
-        else:
-            cr.execute(
-                "SELECT id, active, report_type, parser_state, parser_loc,"
-                " parser_def, model, report_rml"
-                " FROM ir_act_report_xml"
-                " WHERE report_name=%s", (service_name,)
-            )
-            record = cr.dictfetchone()
-            if record['report_type'] == 'aeroo':
-                if record['active'] == True:
-                    parser = rml_parse
-                    if (record['parser_state'] == 'loc' and
-                            record['parser_loc']):
-                        parser = self.load_from_file(
-                            cr, record['parser_loc'], record['id']
-                        ) or parser
-                    elif (record['parser_state'] == 'def' and
-                            record['parser_def']):
-                        parser = self.load_from_source(
-                            record['parser_def']
-                        ) or parser
-                    new_report = self.register_report(
-                        cr, service_name, record['model'],
-                        record['report_rml'], parser
-                    )
-                else:
-                    new_report = False
-            else:
-                new_report = super(report_xml, self)._lookup_report(
-                    cr, name
-                )
-        return new_report
+        records = cr.dictfetchall()
+        for record in records:
+            self.register_report(cr, record)
 
     def _report_content(self, cr, uid, ids, field_name, arg, context=None):
         """Fill computed field report_sxw_content."""
@@ -434,6 +367,12 @@ class report_xml(orm.Model):
                 result[this_obj.id] = False
         return result
 
+    def _get_default_outformat(self, cr, uid, context=None):
+        res_ids = self.pool['report.mimetypes'].search(
+            cr, uid, [('code', '=', 'oo-odt')], context=context
+        )
+        return res_ids and res_ids[0] or False
+
     _columns = {
         'charset': fields.selection(
             _get_encodings,
@@ -456,8 +395,8 @@ class report_xml(orm.Model):
             'Template Stylesheet',
         ),
         'preload_mode': fields.selection(
-            [('static', _('Static')),
-             ('preload', _('Preload'))],
+            [('static', 'Static'),
+             ('preload', 'Preload')],
             string='Preload Mode',
         ),
         'tml_source': fields.selection(
@@ -539,10 +478,27 @@ class report_xml(orm.Model):
             'Wizard Action',
         ),
     }
+    _defaults = {
+        'tml_source': 'database',
+        'in_format': 'oo-odt',
+        'out_format': _get_default_outformat,
+        'charset': 'utf_8',
+        'styles_mode': 'default',
+        'preload_mode': 'static',
+        'parser_state': 'default',
+        'parser_def': """class Parser(report_sxw.rml_parse):
+    def __init__(self, cr, uid, name, context):
+        super(Parser, self).__init__(cr, uid, name, context)
+        self.context = context
+        self.localcontext.update({})""",
+        'active': True,
+        'copies': 1,
+    }
 
     def search(
             self, cr, uid, args, offset=0, limit=None, order=None,
             context=None, count=False):
+        context = context or {}
         orig_res_ids = super(report_xml, self).search(
             cr, uid, args, offset=offset, limit=limit, order=order,
             context=context, count=count
@@ -581,20 +537,22 @@ class report_xml(orm.Model):
     def unlink(self, cr, uid, ids, context=None):
         if not ids:
             return True
-        recs = self.browse(cr, uid, ids, context=None)[0]
+        report_record = self.browse(cr, uid, ids, context=None)[0]
         trans_obj = self.pool['ir.translation']
         act_win_obj = self.pool['ir.actions.act_window']
         irval_obj = self.pool['ir.values']
         trans_ids = trans_obj.search(
             cr, uid,
             [('type', '=', 'report'),
-             ('res_id', 'in', recs.ids)],
+             ('res_id', 'in', ids)],
             context=context
         )
         trans_obj.unlink(cr, uid, trans_ids, context=context)
-        self.unlink_inherit_report(cr, uid, [recs.id], context=context)
+        self.unlink_inherit_report(
+            cr, uid, [report_record.id], context=context
+        )
         reports = self.read(
-            cr, uid, [recs.id],
+            cr, uid, [report_record.id],
             ['report_name', 'model', 'report_wizard', 'replace_report_id'],
             context=context
         )
@@ -623,60 +581,49 @@ class report_xml(orm.Model):
                         irval_obj.unlink(
                             cr, uid, ir_value_ids, context=context
                         )
-                    recs.unregister_report(cr, uid, r['report_name'])
+                    self.unregister_report(r['report_name'])
         res = super(report_xml, self).unlink(
-            cr, uid, [recs.id], context=context
+            cr, uid, [report_record.id], context=context
         )
         return res
 
     def create(self, cr, uid, vals, context=None):
-        if 'report_type' in vals and vals['report_type'] == 'aeroo':
-            parser = rml_parse
-            vals['auto'] = False
-            if vals['parser_state'] == 'loc' and vals['parser_loc']:
-                parser = self.load_from_file(
-                    cr, vals['parser_loc'],
-                    vals['name'].lower().replace(' ', '_')
-                ) or parser
-            elif vals['parser_state'] == 'def' and vals['parser_def']:
-                parser = self.load_from_source(vals['parser_def']) or parser
-            res_id = super(report_xml, self).create(
+        """Create report and immediately register service."""
+        if 'report_type' not in vals or vals['report_type'] != 'aeroo':
+            # If not aeroo report, just do standard create:
+            return super(report_xml, self).create(
                 cr, uid, vals, context=context
             )
-            if vals.get('report_wizard'):
-                wizard_id = self._set_report_wizard(
-                    cr, uid, vals['replace_report_id'] or res_id,
-                    res_id, linked_report_id=res_id,
-                    report_name=vals['name'],
-                    context=context
-                )
-                self.write(
-                    cr, uid, [res_id], {'wizard_id': wizard_id},
-                    context=context
-                )
-            if vals.get('replace_report_id'):
-                self.link_inherit_report(
-                    cr, uid, res_id,
-                    new_replace_report_id=vals['replace_report_id'],
-                    context=context
-                )
-            try:
-                if vals.get('active', False):
-                    self.register_report(
-                        cr,
-                        vals['report_name'], vals['model'],
-                        vals.get('report_rml', False), parser
-                    )
-            except Exception:
-                logger.error("Error in report registration", exc_info=True)
-                raise except_orm(
-                    _('Report registration error !'),
-                    _('Report was not registered in system !')
-                )
-            return res_id
+        vals['auto'] = False
         res_id = super(report_xml, self).create(
             cr, uid, vals, context=context
         )
+        if vals.get('report_wizard'):
+            wizard_id = self._set_report_wizard(
+                cr, uid, vals['replace_report_id'] or res_id,
+                res_id, linked_report_id=res_id,
+                report_name=vals['name'],
+                context=context
+            )
+            self.write(
+                cr, uid, [res_id], {'wizard_id': wizard_id},
+                context=context
+            )
+        if vals.get('replace_report_id'):
+            self.link_inherit_report(
+                cr, uid, res_id,
+                new_replace_report_id=vals['replace_report_id'],
+                context=context
+            )
+        try:
+            if vals.get('active', False):
+                self.register_report(cr, vals)
+        except Exception:
+            logger.error("Error in report registration", exc_info=True)
+            raise except_orm(
+                _('Report registration error !'),
+                _('Report was not registered in system !')
+            )
         return res_id
 
     def write(self, cr, uid, ids, vals, context=None):
@@ -708,43 +655,6 @@ class report_xml(orm.Model):
                 not vals['report_wizard'] and recs.report_wizard):
             self._unset_report_wizard(cr, uid, [recs.id], context=context)
             vals['wizard_id'] = False
-        parser = rml_parse
-        p_state = vals.get('parser_state', False)
-        if p_state == 'loc':
-            parser = self.load_from_file(
-                cr, vals.get('parser_loc', False) or recs.parser_loc, recs.id
-            ) or parser
-        elif p_state == 'def':
-            parser = self.load_from_source(
-                (vals.get('parser_loc', False) or recs.parser_def or '')
-            ) or parser
-        elif p_state == 'default':
-            parser = rml_parse
-        elif recs.parser_state == 'loc':
-            parser = self.load_from_file(
-                cr, recs.parser_loc, recs.id
-            ) or parser
-        elif recs.parser_state == 'def':
-            parser = self.load_from_source(
-                recs.parser_def
-            ) or parser
-        elif recs.parser_state == 'default':
-            parser = rml_parse
-        if vals.get('parser_loc', False):
-            parser = self.load_from_file(
-                cr, vals['parser_loc'], recs.id
-            ) or parser
-        elif vals.get('parser_def', False):
-            parser = self.load_from_source(
-                vals['parser_def']
-            ) or parser
-        if (vals.get('report_name', False) and
-                vals['report_name'] != recs.report_name):
-            self.delete_report_service(recs.report_name)
-            report_name = vals['report_name']
-        else:
-            self.delete_report_service(recs.report_name)
-            report_name = recs.report_name
         # Link / unlink inherited report
         link_vals = {}
         now_unlinked = False
@@ -767,10 +677,6 @@ class report_xml(orm.Model):
                         new_replace_report_id=vals['replace_report_id'],
                         context=context
                     )[0])
-                self.register_report(
-                    cr, report_name, vals.get('model', recs.model),
-                    vals.get('report_rml', recs.report_rml), parser
-                )
             else:
                 link_vals.update(
                     self.unlink_inherit_report(
@@ -780,10 +686,18 @@ class report_xml(orm.Model):
                 now_unlinked = True
         try:
             if vals.get('active', recs.active):
-                self.register_report(
-                    cr, report_name, vals.get('model', recs.model),
-                    vals.get('report_rml', recs.report_rml), parser
-                )
+                report_vals = {
+                    'report_name': vals.get('name', recs.name),
+                    'report_model': vals.get('model', recs.model),
+                    'report_rml': vals.get('report_rml', recs.report_rml),
+                    'parser_state':
+                        vals.get('parser_state', recs.parser_state),
+                    'parser_loc':
+                        vals.get('parser_loc', recs.parser_loc),
+                    'parser_def':
+                        vals.get('parser_def', recs.parser_def),
+                }
+                self.register_report(cr, report_vals)
                 if (not recs.active and
                         vals.get('replace_report_id', recs.replace_report_id)):
                     link_vals.update(
@@ -795,7 +709,7 @@ class report_xml(orm.Model):
                         )
                     )
             elif not vals.get('active', recs.active):
-                self.unregister_report(cr, uid, report_name)
+                self.unregister_report(vals.get('name', recs.name))
                 if not now_unlinked:
                     link_vals.update(
                         self.unlink_inherit_report(
@@ -979,26 +893,3 @@ class report_xml(orm.Model):
         for id in ids:
             self.write(cr, uid, id, {'auto': False}, context=context)
         return True
-
-    def _get_default_outformat(self, cr, uid, context=None):
-        res_ids = self.pool['report.mimetypes'].search(
-            cr, uid, [('code', '=', 'oo-odt')], context=context
-        )
-        return res_ids and res_ids[0] or False
-
-    _defaults = {
-        'tml_source': 'database',
-        'in_format': 'oo-odt',
-        'out_format': _get_default_outformat,
-        'charset': 'utf_8',
-        'styles_mode': 'default',
-        'preload_mode': 'static',
-        'parser_state': 'default',
-        'parser_def': """class Parser(report_sxw.rml_parse):
-    def __init__(self, cr, uid, name, context):
-        super(Parser, self).__init__(cr, uid, name, context)
-        self.context = context
-        self.localcontext.update({})""",
-        'active': True,
-        'copies': 1,
-    }
