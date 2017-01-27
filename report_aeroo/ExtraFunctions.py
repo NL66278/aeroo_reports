@@ -1,34 +1,7 @@
-# -*- encoding: utf-8 -*-
-################################################################################
-#
-# Copyright (c) 2009-2014 Alistek ( http://www.alistek.com ) All Rights Reserved.
-#                    General contacts <info@alistek.com>
-#
-# WARNING: This program as such is intended to be used by professional
-# programmers who take the whole responsability of assessing all potential
-# consequences resulting from its eventual inadequacies and bugs
-# End users who are looking for a ready-to-use solution with commercial
-# garantees and support are strongly adviced to contract a Free Software
-# Service Company
-#
-# This program is Free Software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 3
-# of the License, or (at your option) any later version.
-#
-# This module is GPLv3 or newer and incompatible
-# with OpenERP SA "AGPL + Private Use License"!
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-#
-################################################################################
+# -*- coding: utf-8 -*-
+# © 2009-2014 Alistek <http://www.alistek.com>.
+# © 2017 Therp BV <http://therp.nl>.
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 from openerp import pooler
 from barcode import barcode
 from openerp.tools import translate
@@ -66,11 +39,15 @@ try:
 
         def handleMatch(self, m):
             el = super(AutomailPattern_mod, self).handleMatch(m)
-            href = ''.join([chr(int(a.replace(markdown.AMP_SUBSTITUTE+'#', ''))) for a in el.get('href').split(';') if a])
+            href = ''.join([
+                chr(int(a.replace(markdown.AMP_SUBSTITUTE+'#', '')))
+                for a in el.get('href').split(';') if a
+            ])
             el.set('href', href)
             return el
 
-    markdown.inlinepatterns.AutomailPattern = AutomailPattern_mod # easy hack for correct displaying in Joomla
+    # easy hack for correct displaying in Joomla
+    markdown.inlinepatterns.AutomailPattern = AutomailPattern_mod
 
 except ImportError, e:
     markdown_ok = False
@@ -112,43 +89,44 @@ class ExtraFunctions(object):
     def __init__(self, cr, uid, report_id, context):
         self.cr = cr
         self.uid = uid
-        self.registry = pooler.get_pool(cr.dbname)
+        self.pool = pooler.get_pool(self.cr.dbname)
         self.report_id = report_id
         self.context = context
         self.functions = {
-            'asarray':self._asarray,
-            'asimage':self._asimage,
-            'html_embed_image':self._embed_image,
-            'get_attachments':self._get_attachments,
-            'get_name':self._get_name,
-            'get_label':self._get_label,
-            'getLang':self._get_lang,
-            'get_selection_item':self._get_selection_items('item'),
-            'safe':self._get_safe,
-            'countif':self._countif,
-            'count':self._count,
-            'sumif':self._sumif,
-            'sum_field':self._sum,
-            'max_field':self._max,
-            'min_field':self._min,
-            'average':self._average,
-            'large':self._large,
-            'small':self._small,
-            'count_blank':self._count_blank,
-            '_':self._translate_text,
+            'asarray': self._asarray,
+            'asimage': self._asimage,
+            'html_embed_image': self._embed_image,
+            'get_attachments': self._get_attachments,
+            'get_name': self._get_name,
+            'get_label': self._get_label,
+            'getLang': self._get_lang,
+            'get_selection_item': self._get_selection_items('item'),
+            'safe': self._get_safe,
+            'countif': self._countif,
+            'count': self._count,
+            'sumif': self._sumif,
+            'sum_field': self._sum,
+            'max_field': self._max,
+            'min_field': self._min,
+            'average': self._average,
+            'large': self._large,
+            'small': self._small,
+            'count_blank': self._count_blank,
+            '_': self._translate_text,
             'gettext':self._translate_text,
-            'currency_to_text':self._currency2text(context['company'].currency_id.name), #self._currency2text(context['company'].currency_id.code),
-            'barcode':barcode.make_barcode,
-            'debugit':self.debugit,
-            'dec_to_time':self._dec2time,
-            'chunks':self._chunks,
-            'browse':self._browse,
-            'search':self._search,
-            'search_ids':self._search_ids,
-            'field_size':self._field_size,
-            'field_accuracy':self._field_accuracy,
-            'bool_as_icon':self._bool_as_icon,
-            'time':time,
+            'currency_to_text':
+                self._currency2text(context['company'].currency_id.name),
+            'barcode': barcode.make_barcode,
+            'debugit': self.debugit,
+            'dec_to_time': self._dec2time,
+            'chunks': self._chunks,
+            'browse': self._browse,
+            'search': self._search,
+            'search_ids': self._search_ids,
+            'field_size': self._field_size,
+            'field_accuracy': self._field_accuracy,
+            'bool_as_icon': self._bool_as_icon,
+            'time': time,
             'report_xml': self._get_report_xml(),
             'get_log': self._perm_read(self.cr, self.uid),
             'get_selection_items': self._get_selection_items(),
@@ -156,12 +134,24 @@ class ExtraFunctions(object):
             'html_escape': self._html_escape,
             'http_prettyuri': self._http_prettyuri,
             'http_builduri': self._http_builduri,
-            'text_markdown': markdown_ok and self._text_markdown or \
-                self._text_plain('"markdown" format is not supported! Need to be installed "python-markdown" package.'),
-            'text_restruct': rest_ok and self._text_restruct or \
-                self._text_plain('"reStructuredText" format is not supported! Need to be installed "python-docutils" package.'),
-            'text_wiki': wikitext_ok and self._text_wiki or \
-                self._text_plain('"wikimarkup" format is not supported! Need to be installed "python-mediawiki" package.'),
+            'text_markdown':
+                markdown_ok and self._text_markdown or
+                self._text_plain(
+                    '"markdown" format is not supported!'
+                    ' Need to be installed "python-markdown" package.'
+                ),
+            'text_restruct':
+                rest_ok and self._text_restruct or
+                self._text_plain(
+                    '"reStructuredText" format is not supported!'
+                    ' Need to be installed "python-docutils" package.'
+                ),
+            'text_wiki':
+                wikitext_ok and self._text_wiki or
+                self._text_plain(
+                    '"wikimarkup" format is not supported!'
+                    ' Need to be installed "python-mediawiki" package.'
+                ),
             'text_markup': self._text_markup,
             'text_remove_markup': self._text_remove_markup,
             '__filter': self.__filter, # Don't use in the report template!
@@ -183,7 +173,9 @@ class ExtraFunctions(object):
         return get_log
 
     def _get_report_xml(self):
-        return self.pool['ir.actions.report.xml'].browse(self.cr, self.uid, self.report_id)
+        return self.pool['ir.actions.report.xml'].browse(
+            self.cr, self.uid, self.report_id
+        )
 
     def _get_lang(self, source='current'):
         if source=='current':
@@ -201,14 +193,29 @@ class ExtraFunctions(object):
                 return kind[1]
             else:
                 return kind[2]
-        bool_kind = {0:{True:self._translate_text('True'), False:self._translate_text('False'), None:""},
-                     1:{True:self._translate_text('T'), False:self._translate_text('F'), None:""},
-                     2:{True:self._translate_text('Yes'), False:self._translate_text('No'), None:""},
-                     3:{True:self._translate_text('Y'), False:self._translate_text('N'), None:""},
-                     4:{True:'+', False:'-', None:""},
-                     5:{True:'[ + ]', False:'[ - ]', None:"[ ]"},
-                     6:{True:'[ x ]', False:'[ ]', None:"[ ]"},
-                    }
+        bool_kind = {
+            0: {True: self._translate_text('True'),
+                False: self._translate_text('False'),
+                None: ""},
+            1: {True: self._translate_text('T'),
+                False: self._translate_text('F'),
+                None: ""},
+            2: {True: self._translate_text('Yes'),
+                False: self._translate_text('No'),
+                None: ""},
+            3: {True: self._translate_text('Y'),
+                False: self._translate_text('N'),
+                None: ""},
+            4: {True: '+',
+                False: '-',
+                None: ""},
+            5: {True: '[ + ]',
+                False: '[ - ]',
+                None: "[ ]"},
+            6: {True: '[ x ]',
+                False: '[ ]',
+                None: "[ ]"},
+        }
         return bool_kind.get(kind, {}).get(val, val)
 
     def _dec2time(self, dec, h_format, min_format):
@@ -219,21 +226,41 @@ class ExtraFunctions(object):
         elif dec-int(dec)==0.0:
             return h_format.replace('%H', str(int(dec)))
         else:
-            return h_format.replace('%H', str(int(dec)))+min_format.replace('%M', str(int(round((dec-int(dec))*60))))
+            return h_format.replace(
+                '%H', str(int(dec))
+            ) + min_format.replace('%M', str(int(round((dec-int(dec))*60))))
 
     def _currency2text(self, currency):
         def c_to_text(sum, currency=currency, language=None):
-            #return unicode(currency_to_text(sum, currency, language or self._get_lang()), "UTF-8")
-            return unicode(supported_language.get(language or self._get_lang()).currency_to_text(sum, currency), "UTF-8")
+            return unicode(
+                supported_language.get(
+                    language or self._get_lang()
+                ).currency_to_text(sum, currency), "UTF-8")
         return c_to_text
 
     def _translate_text(self, source):
-        trans_obj = self.registry['ir.translation']
-        trans = trans_obj.search(self.cr,self.uid,[('res_id','=',self.report_id),('type','=','report'),('src','=',source),('lang','=',self.context['lang'] or self.context['user_lang'])])
+        trans_obj = self.pool['ir.translation']
+        trans = trans_obj.search(
+            self.cr, self.uid, [
+                ('res_id', '=', self.report_id),
+                ('type', '=', 'report'),
+                ('src', '=', source),
+                ('lang', '=', self.context['lang'] or
+                 self.context['user_lang']),
+            ]
+        )
         if not trans:
-            #trans_obj.create(self.cr, self.uid, {'src':source,'type':'report','lang':self._get_lang(),'res_id':self.report_id,'name':('ir.actions.report.xml,%s' % source)[:128]})
-            trans_obj.create(self.cr, self.uid, {'src':source,'type':'report','lang':self._get_lang(),'res_id':self.report_id,'name':'ir.actions.report.xml'})
-        return translate(self.cr, 'ir.actions.report.xml', 'report', self._get_lang(), source) or source
+            trans_obj.create(
+                self.cr, self.uid, {
+                    'src': source,
+                    'type': 'report',
+                    'lang': self._get_lang(),
+                    'res_id': self.report_id,
+                    'name': 'ir.actions.report.xml'
+                })
+        return translate(
+            self.cr, 'ir.actions.report.xml', 'report', self._get_lang(),
+        source) or source
 
     def _countif(self, attr, domain):
         statement = domain2statement(domain)
@@ -253,7 +280,8 @@ class ExtraFunctions(object):
 
     def _sumif(self, attr, sum_field, domain):
         statement = domain2statement(domain)
-        expr = "for o in objects:\n\tif%s:\n\t\tsumm+=float(o.%s)" % (statement, sum_field)
+        expr = "for o in objects:\n\tif%s:\n\t\tsumm+=float(o.%s)" % \
+            (statement, sum_field)
         localspace = {'objects':attr, 'summ':0}
         exec expr in localspace
         return localspace['summ']
@@ -280,7 +308,8 @@ class ExtraFunctions(object):
         expr = "for o in objects:\n\tvalue_list.append(o.%s)" % field
         localspace = {'objects':attr, 'value_list':[]}
         exec expr in localspace
-        return float(sum(localspace['value_list']))/float(len(localspace['value_list']))
+        return float(sum(localspace['value_list'])) / \
+                float(len(localspace['value_list']))
 
     def _asarray(self, attr, field):
         expr = "for o in objects:\n\tvalue_list.append(o.%s)" % field
@@ -309,7 +338,10 @@ class ExtraFunctions(object):
             else:
                 model = obj._name
             if isinstance(obj, (str,unicode)) or hasattr(obj, field):
-                labels = self.registry[model].fields_get(self.cr, self.uid, allfields=[field], context=self.context)
+                labels = self.pool[model].fields_get(
+                    self.cr, self.uid, allfields=[field],
+                    context=self.context
+                )
                 return labels[field]['string']
         except Exception, e:
             raise e
@@ -323,7 +355,7 @@ class ExtraFunctions(object):
             else:
                 model = obj._name
             if isinstance(obj, (str,unicode)) or hasattr(obj, field):
-                size = self.registry[model]._columns[field].size
+                size = self.pool[model]._columns[field].size
                 return size
         except Exception, e:
             return ''
@@ -337,7 +369,7 @@ class ExtraFunctions(object):
             else:
                 model = obj._name
             if isinstance(obj, (str,unicode)) or hasattr(obj, field):
-                digits = self.registry[model]._columns[field].digits
+                digits = self.pool[model]._columns[field].digits
                 return digits or [16,2]
         except Exception:
             return []
@@ -353,29 +385,43 @@ class ExtraFunctions(object):
                 else:
                     model = obj._name
                     field_val = getattr(obj, field)
-                if kind=='item':
+                if kind == 'item':
                     if field_val:
-                        return dict(self.registry[model].fields_get(self.cr, self.uid, allfields=[field], context=self.context)[field]['selection'])[field_val]
-                elif kind=='items':
-                    return self.registry[model].fields_get(self.cr, self.uid, allfields=[field], context=self.context)[field]['selection']
+                        return dict(
+                            self.pool[model].fields_get(
+                                self.cr, self.uid, allfields=[field],
+                                context=self.context
+                            )[field]['selection']
+                        )[field_val]
+                elif kind == 'items':
+                    return self.pool[model].fields_get(
+                        self.cr, self.uid, allfields=[field],
+                        context=self.context
+                    )[field]['selection']
                 return ''
             except Exception:
                 return ''
         return get_selection_item
 
     def _get_attachments(self, o, index=None, raw=False):
-        attach_obj = self.registry['ir.attachment']
+        attach_obj = self.pool['ir.attachment']
         srch_param = [('res_model','=',o._name),('res_id','=',o.id)]
         if type(index)==str:
             srch_param.append(('name','=',index))
         attachments = attach_obj.search(self.cr,self.uid,srch_param)
-        res = [x['datas'] for x in attach_obj.read(self.cr,self.uid,attachments,['datas']) if x['datas']]
+        res = [
+            x['datas']
+            for x in attach_obj.read(self.cr, self.uid,attachments, ['datas'])
+            if x['datas']
+        ]
         convert = raw and base64.decodestring or (lambda a: a)
         if type(index)==int:
             return convert(res[index])
         return convert(len(res)==1 and res[0] or res)
 
-    def _asimage(self, field_value, rotate=None, size_x=None, size_y=None, uom='px', hold_ratio=False):
+    def _asimage(
+            self, field_value, rotate=None, size_x=None, size_y=None,
+            uom='px', hold_ratio=False):
         def size_by_uom(val, uom, dpi):
             if uom=='px':
                 result=str(val/dpi)+'in'
@@ -384,7 +430,6 @@ class ExtraFunctions(object):
             elif uom=='in':
                 result=str(val)+'in'
             return result
-        ##############################################
         if not field_value:
             return StringIO.StringIO(), 'image/png'
         field_value = base64.decodestring(field_value)
@@ -470,11 +515,11 @@ class ExtraFunctions(object):
             yield l[i:i+n]
 
     def _search_ids(self, model, domain):
-        obj = self.registry[model]
+        obj = self.pool[model]
         return obj.search(self.cr, self.uid, domain)
 
     def _search(self, model, domain):
-        obj = self.registry[model]
+        obj = self.pool[model]
         ids = obj.search(self.cr, self.uid, domain)
         return obj.browse(self.cr, self.uid, ids, {'lang':self._get_lang()})
 
@@ -488,7 +533,7 @@ class ExtraFunctions(object):
             model, id = args
         else:
             raise None
-        return self.registry[model].browse(self.cr, self.uid, id)
+        return self.pool[model].browse(self.cr, self.uid, id)
 
     def _get_safe(self, expression, obj):
         try:
