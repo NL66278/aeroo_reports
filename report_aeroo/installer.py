@@ -227,7 +227,7 @@ class docs_config_installer(orm.TransientModel):
             'error_details': error_details,
             'state': state,
         }
-        self,write(cr, uid, ids, vals, context=context)
+        self.write(cr, uid, ids, vals, context=context)
         mod_obj = self.pool['ir.model.data']
         act_obj = self.pool['ir.actions.act_window']
         result = mod_obj.get_object_reference(
