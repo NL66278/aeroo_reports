@@ -78,7 +78,6 @@ Reporting engine features
 * Same button - different templates;
 * Powerful stylesheet system for ODF templates;
 * Global or local stylesheets;
-* Template preloading for performance concerns;
 * User defined parsers;
 * Report deactivation;
 * Optional format fallback;

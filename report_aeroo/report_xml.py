@@ -257,7 +257,7 @@ class report_xml(orm.Model):
         if netsvc.Service.exists(service_name):
             netsvc.Service.remove(service_name)
         Aeroo_report(
-            cr, service_name,
+            service_name,
             record['model'], record['report_rml'],
             parser=parser
         )
@@ -394,11 +394,6 @@ class report_xml(orm.Model):
             'report.stylesheets',
             'Template Stylesheet',
         ),
-        'preload_mode': fields.selection(
-            [('static', 'Static'),
-             ('preload', 'Preload')],
-            string='Preload Mode',
-        ),
         'tml_source': fields.selection(
             [('database', 'Database'),
              ('file', 'File'),
@@ -484,7 +479,6 @@ class report_xml(orm.Model):
         'out_format': _get_default_outformat,
         'charset': 'utf_8',
         'styles_mode': 'default',
-        'preload_mode': 'static',
         'parser_state': 'default',
         'parser_def': """class Parser(report_sxw.rml_parse):
     def __init__(self, cr, uid, name, context):

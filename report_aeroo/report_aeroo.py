@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# © 2009  Domsense s.r.l.
-# © 2009-2014 Alistek <http://www.alistek.com>.
-# © 2017 Therp BV <http://therp.nl>.
-# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
+# Copyright 2009  Domsense s.r.l.
+# Copyright 2009-2014 Alistek <http://www.alistek.com>.
+# Copyright 2017-2020 Therp BV <https://therp.nl>.
+# License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl.html).
 import os
 import sys
 import traceback
@@ -128,42 +128,12 @@ class Aeroo_report(report_sxw):
         logger.log(level, message, exc_info=1)
 
     def __init__(
-            self, cr, name, table, rml=False, parser=False,
+            self, name, table, rml=False, parser=False,
             header=True, store=False):
         super(Aeroo_report, self).__init__(
             name, table, rml, parser, header, store
         )
-        self.logger("registering %s (%s)" % (name, table), logging.INFO)
         self.active_prints = {}
-
-        pool = pooler.get_pool(cr.dbname)
-        ir_obj = pool.get('ir.actions.report.xml')
-        name = name.startswith('report.') and name[7:] or name
-        try:
-            report_xml_ids = ir_obj.search(cr, 1, [('report_name', '=', name)])
-            if report_xml_ids:
-                report_xml = ir_obj.browse(cr, 1, report_xml_ids[0])
-            else:
-                report_xml = False
-            if report_xml and report_xml.preload_mode == 'preload':
-                file_data = report_xml.report_sxw_content
-                if not file_data:
-                    self.logger(
-                        "template is not defined in %s (%s) !" %
-                        (name, table), logging.WARNING
-                    )
-                    template_io = None
-                else:
-                    template_io = StringIO()
-                    template_io.write(base64.decodestring(file_data))
-                    style_io=self.get_styles_file(cr, 1, report_xml)
-                if template_io:
-                    self.serializer = OOSerializer(template_io, oo_styles=style_io)
-        except Exception, e:
-            logger.error(
-                "Error while registering report '%s' (%s)",
-                name, table, exc_info=True
-            )
 
     def getObjects_mod(self, cr, uid, ids, rep_type, context):
         if rep_type == 'aeroo':
@@ -506,28 +476,14 @@ class Aeroo_report(report_sxw):
                 logging.INFO
             )  # debug mode
             return False, output
-        #elif file_data:
-        #    template_io = StringIO()
-        #    template_io.write(file_data or report_xml.report_sxw_content)
-        #    basic = Template(source=template_io, styles=style_io)
         else:
-            if report_xml.preload_mode == 'preload' and hasattr(self, 'serializer'):
-                serializer = copy.copy(self.serializer)
-                serializer.apply_style(style_io)
-                template_io = serializer.template
-            else:
-                template_io = StringIO()
-                template_io.write(file_data or base64.decodestring(report_xml.report_sxw_content) )
-                serializer = OOSerializer(template_io, oo_styles=style_io)
-            try:
-                basic = Template(source=template_io, serializer=serializer, lookup=DynamicLookup)
-            except Exception, e:
-                self._raise_exception(e, print_id)
-
-        #if not file_data:
-        #    return False, output
-
-        #basic = Template(source=template_io, serializer=serializer)
+            template_io = StringIO()
+            template_io.write(file_data or base64.decodestring(report_xml.report_sxw_content) )
+            serializer = OOSerializer(template_io, oo_styles=style_io)
+        try:
+            basic = Template(source=template_io, serializer=serializer, lookup=DynamicLookup)
+        except Exception, e:
+            self._raise_exception(e, print_id)
 
         aeroo_docs = context.get('aeroo_docs', False)
         subcontext = context.copy()

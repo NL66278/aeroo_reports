@@ -260,11 +260,6 @@ msgid "Print"
 msgstr ""
 
 #. module: report_aeroo
-#: field:ir.actions.report.xml,preload_mode:0
-msgid "Preload Mode"
-msgstr ""
-
-#. module: report_aeroo
 #: field:aeroo.print_actions,copies:0
 msgid "Number of copies"
 msgstr ""
@@ -777,13 +772,6 @@ msgid "Report generation error!"
 msgstr ""
 
 #. module: report_aeroo
-#: code:addons/report_aeroo/report_xml.py:345
-#: selection:ir.actions.report.xml,preload_mode:0
-#, python-format
-msgid "Preload"
-msgstr ""
-
-#. module: report_aeroo
 #: view:ir.actions.report.xml:0
 msgid "Template path"
 msgstr ""
@@ -791,13 +779,6 @@ msgstr ""
 #. module: report_aeroo
 #: view:report.aeroo.installer:0
 msgid "Aeroo Reports for OpenERP is a comprehensive reporting engine based on Aeroo Library."
-msgstr ""
-
-#. module: report_aeroo
-#: code:addons/report_aeroo/report_xml.py:344
-#: selection:ir.actions.report.xml,preload_mode:0
-#, python-format
-msgid "Static"
 msgstr ""
 
 #. module: report_aeroo

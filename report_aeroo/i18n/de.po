@@ -264,11 +264,6 @@ msgid "Print"
 msgstr "Drucken"
 
 #. module: report_aeroo
-#: field:ir.actions.report.xml,preload_mode:0
-msgid "Preload Mode"
-msgstr "Preload Modus"
-
-#. module: report_aeroo
 #: field:aeroo.print_actions,copies:0
 msgid "Number of copies"
 msgstr "Anzahl Kopien"
@@ -777,13 +772,6 @@ msgid "Report generation error!"
 msgstr "Fehler bei Druck des Reports !"
 
 #. module: report_aeroo
-#: code:addons/report_aeroo/report_xml.py:345
-#: selection:ir.actions.report.xml,preload_mode:0
-#, python-format
-msgid "Preload"
-msgstr "Vorspann"
-
-#. module: report_aeroo
 #: view:ir.actions.report.xml:0
 msgid "Template path"
 msgstr "Vorlage Pfad"
@@ -796,13 +784,6 @@ msgid ""
 msgstr ""
 "Aeroo Report ist eine funktionsreiche Report Engine  auf Basis der Aeroo "
 "Bibliothek."
-
-#. module: report_aeroo
-#: code:addons/report_aeroo/report_xml.py:344
-#: selection:ir.actions.report.xml,preload_mode:0
-#, python-format
-msgid "Static"
-msgstr "Status"
 
 #. module: report_aeroo
 #: code:addons/report_aeroo/wizard/report_import_wizard.py:74
